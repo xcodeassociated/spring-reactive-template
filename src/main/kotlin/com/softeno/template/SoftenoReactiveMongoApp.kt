@@ -29,7 +29,12 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.ServerResponse.ok
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Flux.fromIterable
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
+import reactor.util.function.Tuple2
+
 
 @SpringBootApplication
 class SoftenoReactiveMongoApp
@@ -112,6 +117,7 @@ data class Permission(
 @Repository
 interface PermissionsReactiveRepository : ReactiveMongoRepository<Permission, String>, ReactiveQuerydslPredicateExecutor<Permission> {
 	fun findAllBy(pageable: Pageable): Flux<Permission>
+	fun findByIdIn(ids: Set<String>): Flux<Permission>
 }
 
 @Component
@@ -125,4 +131,93 @@ class PermissionsReactiveMongoTemplate(val mongoTemplate: ReactiveMongoTemplate)
 		// ref: https://medium.com/geekculture/types-of-update-operations-in-mongodb-using-spring-boot-11d5d4ce88cf
 		return mongoTemplate.findAndModify(query, update, options, Permission::class.java)
 	}
+}
+
+@Document
+data class User(
+	@Id
+	val id: String?,
+	val name: String,
+	val permissions: Set<String>
+)
+
+data class UserInput(
+	val name: String,
+	val permissionIds: Set<String>
+)
+
+data class UserDto(
+	val id: String,
+	val name: String,
+	val permissions: List<Permission>
+)
+
+@Repository
+interface UserReactiveRepository : ReactiveMongoRepository<User, String>, ReactiveQuerydslPredicateExecutor<User> {
+	fun findAllBy(pageable: Pageable): Flux<User>
+}
+
+@RestController
+@RequestMapping("/v1/")
+@Validated
+class UserControllerV1(
+	val userReactiveRepository: UserReactiveRepository,
+	val permissionsReactiveRepository: PermissionsReactiveRepository
+) {
+	@GetMapping("/users")
+	fun getAllUsers(
+		@RequestParam(required = false, defaultValue = "0") page: Int,
+		@RequestParam(required = false, defaultValue = "10") size: Int,
+		@RequestParam(required = false, defaultValue = "id") sort: String,
+		@RequestParam(required = false, defaultValue = "ASC") direction: String
+	): Flux<User> {
+		val sort = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
+		return userReactiveRepository.findAllBy(PageRequest.of(page, size, sort))
+	}
+
+	@PostMapping("/users")
+	fun createUser(@RequestBody input: UserInput): Mono<User> {
+		val permissions: Mono<List<Permission>> = fromIterable(input.permissionIds)
+			.flatMap { productId: String -> permissionsReactiveRepository.findById(productId) }
+			.collectList()
+
+		return Mono.just(input.name)
+			.zipWith(permissions)
+			.map { tuple ->
+				User(id = null, name = tuple.t1, permissions = tuple.t2
+					.map { permission -> permission.id!! }
+					.toSet()
+				)
+			}.flatMap { e -> userReactiveRepository.save(e) }
+	}
+
+	@GetMapping("/users/{id}/mapped")
+	fun getUSerWithMappedPermissions(@PathVariable id: String): Mono<UserDto> {
+		val user: Mono<User> = userReactiveRepository.findById(id)
+		return user.map { e -> e.permissions }
+			.map { e -> permissionsReactiveRepository.findByIdIn(e).collectList() }
+			.map { e -> e.zipWith(user)
+				.map { tuple -> UserDto(id = tuple.t2.id!!, name = tuple.t2.name, permissions = tuple.t1 ) }
+			}.flatMap { e -> e }
+	}
+
+	@GetMapping("/users/mapped")
+	fun getAllUsersMapped(
+		@RequestParam(required = false, defaultValue = "0") page: Int,
+		@RequestParam(required = false, defaultValue = "10") size: Int,
+		@RequestParam(required = false, defaultValue = "id") sort: String,
+		@RequestParam(required = false, defaultValue = "ASC") direction: String
+	): Flux<UserDto> {
+		val sort = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
+		return userReactiveRepository.findAllBy(PageRequest.of(page, size, sort))
+			.map { user -> user.toMono().zipWith(user.permissions.toMono())
+				.map { tuple -> permissionsReactiveRepository.findByIdIn(tuple.t2).collectList()
+					.zipWith(tuple.t1.toMono())
+				}
+			}.flatMap { e -> e }
+			.flatMap { e -> e }
+			.map { e -> UserDto(id = e.t2.id!!, name = e.t2.name, permissions = e.t1) }
+
+	}
+	// (...)
 }

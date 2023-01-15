@@ -21,3 +21,18 @@ Content-Type: application/json
 
 ###
 DELETE http://localhost:8080/v1/permissions/ID
+
+###
+GET http://localhost:8080/v1/users?page=0&size=10&sort=id&direction=DESC
+
+###
+POST http://localhost:8080/v1/users
+Content-Type: application/json
+
+{"name": "user test 2", "permissionIds": ["63c451181dfe5034c42cbcae"]}
+
+###
+GET http://localhost:8080/v1/users/63c46d8ae5572816b26f39ce/mapped
+
+###
+GET http://localhost:8080/v1/users/mapped?page=0&size=10&sort=id&direction=DESC
