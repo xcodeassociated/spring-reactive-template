@@ -6,6 +6,8 @@ plugins {
 	id 'org.jetbrains.kotlin.jvm' version '1.6.21'
 	id 'org.jetbrains.kotlin.plugin.spring' version '1.6.21'
 	id 'groovy'
+	id 'com.ewerk.gradle.plugins.querydsl' version '1.0.10'
+	id "org.jetbrains.kotlin.kapt" version "1.8.0"
 }
 
 group = 'com.softeno'
@@ -23,6 +25,7 @@ repositories {
 }
 
 dependencies {
+	// spring project dependencies
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
@@ -33,11 +36,21 @@ dependencies {
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo'
 	testImplementation 'io.projectreactor:reactor-test'
+
+	// embedded mongo
+	testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo'
+
+	// spock
 	testImplementation group: 'org.codehaus.groovy', name: 'groovy-all', version: '3.0.14', ext: 'pom'
 	testImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-4.0'
 	testImplementation group: 'org.spockframework', name: 'spock-spring', version: '2.4-M1-groovy-4.0'
+
+	// guerydsl
+	implementation ('com.querydsl:querydsl-mongodb:5.0.0') {
+		exclude group: 'org.mongodb', module: 'mongo-java-driver'
+	}
+	kapt group: 'com.querydsl', name: 'querydsl-apt', version: '5.0.0'
 }
 
 tasks.withType(KotlinCompile) {
@@ -49,4 +62,8 @@ tasks.withType(KotlinCompile) {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+kapt {
+	annotationProcessor("org.springframework.data.mongodb.repository.support.MongoAnnotationProcessor")
 }

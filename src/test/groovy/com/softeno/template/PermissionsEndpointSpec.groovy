@@ -39,7 +39,7 @@ class PermissionsEndpointSpec extends Specification {
 
     def "web client test of /permissions with empty database"() {
         expect:
-        webClient.get().uri("/permissions")
+        webClient.get().uri("/v1/permissions")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody().json("[]")

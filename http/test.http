@@ -2,16 +2,16 @@
 GET http://localhost:8080/
 
 ###
-GET http://localhost:8080/permissions
+GET http://localhost:8080/v1/permissions?page=0&size=10&sort=id&direction=DESC
 
 ###
-POST http://localhost:8080/permissions
+POST http://localhost:8080/v1/permissions
 Content-Type: application/json
 
 {"name": "test", "description": "test description"}
 
 ###
-GET http://localhost:8080/permissions/ID
+GET http://localhost:8080/v1/permissions/63c32cb0ce7586570c06cffe
 
 ###
-DELETE http://localhost:8080/permissions/ID
+DELETE http://localhost:8080/v1/permissions/ID
