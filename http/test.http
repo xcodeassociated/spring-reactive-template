@@ -1,0 +1,17 @@
+### hello world
+GET http://localhost:8080/
+
+###
+GET http://localhost:8080/permissions
+
+###
+POST http://localhost:8080/permissions
+Content-Type: application/json
+
+{"name": "test", "description": "test description"}
+
+###
+GET http://localhost:8080/permissions/ID
+
+###
+DELETE http://localhost:8080/permissions/ID
