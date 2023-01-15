@@ -8,10 +8,12 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
+import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository
 import org.springframework.data.querydsl.ReactiveQuerydslPredicateExecutor
 import org.springframework.stereotype.Repository
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.server.RequestPredicates.GET
@@ -46,6 +48,7 @@ class RoutesConfig {
 
 @RestController
 @RequestMapping("/v1/")
+@Validated
 class WebControllerV1(val permissionsReactiveRepository: PermissionsReactiveRepository) {
 	@GetMapping("/permissions")
 	fun getAllPermissions(
@@ -82,7 +85,10 @@ data class PermissionInput(val name: String, val description: String)
 data class Permission(
 	@Id
 	val id: String?,
+
+	@Indexed(unique = true)
 	val name: String,
+
 	val description: String
 )
 
