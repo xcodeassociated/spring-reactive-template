@@ -11,7 +11,13 @@ Content-Type: application/json
 {"name": "test", "description": "test description"}
 
 ###
-GET http://localhost:8080/v1/permissions/63c32cb0ce7586570c06cffe
+GET http://localhost:8080/v1/permissions/63c451181dfe5034c42cbcae
+
+###
+PATCH http://localhost:8080/v1/permissions/63c451181dfe5034c42cbcae
+Content-Type: application/json
+
+{"name": "test-changed-2", "description": "test description changed!"}
 
 ###
 DELETE http://localhost:8080/v1/permissions/ID
