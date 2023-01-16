@@ -2,37 +2,37 @@
 GET http://localhost:8080/
 
 ###
-GET http://localhost:8080/v1/permissions?page=0&size=10&sort=id&direction=DESC
+GET http://localhost:8080/reactive/permissions?page=0&size=10&sort=id&direction=DESC
 
 ###
-POST http://localhost:8080/v1/permissions
+POST http://localhost:8080/reactive/permissions
 Content-Type: application/json
 
 {"name": "test", "description": "test description"}
 
 ###
-GET http://localhost:8080/v1/permissions/63c451181dfe5034c42cbcae
+GET http://localhost:8080/reactive/permissions/63c451181dfe5034c42cbcae
 
 ###
-PATCH http://localhost:8080/v1/permissions/63c451181dfe5034c42cbcae
+PATCH http://localhost:8080/reactive/permissions/63c451181dfe5034c42cbcae
 Content-Type: application/json
 
 {"name": "test-changed-2", "description": "test description changed!"}
 
 ###
-DELETE http://localhost:8080/v1/permissions/ID
+DELETE http://localhost:8080/reactive/permissions/ID
 
 ###
-GET http://localhost:8080/v1/users?page=0&size=10&sort=id&direction=DESC
+GET http://localhost:8080/reactive/users?page=0&size=10&sort=id&direction=DESC
 
 ###
-POST http://localhost:8080/v1/users
+POST http://localhost:8080/reactive/users
 Content-Type: application/json
 
 {"name": "user test 2", "permissionIds": ["63c451181dfe5034c42cbcae"]}
 
 ###
-GET http://localhost:8080/v1/users/63c46d8ae5572816b26f39ce/mapped
+GET http://localhost:8080/reactive/users/63c46d8ae5572816b26f39ce/mapped
 
 ###
-GET http://localhost:8080/v1/users/mapped?page=0&size=10&sort=id&direction=DESC
+GET http://localhost:8080/reactive/users/mapped?page=0&size=10&sort=id&direction=DESC

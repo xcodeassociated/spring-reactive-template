@@ -9,7 +9,7 @@ import spock.lang.Specification
 @SpringBootTest(classes = SoftenoReactiveMongoApp,
         properties = "application.environment=integration",
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class EndpointSpec extends Specification {
+class RouterEndpointsSpec extends Specification {
 
     @Autowired
     WebTestClient webClient

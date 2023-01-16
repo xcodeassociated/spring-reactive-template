@@ -9,7 +9,7 @@ import spock.lang.Specification
 @SpringBootTest(classes = SoftenoReactiveMongoApp,
         properties = "application.environment=integration",
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class PermissionsEndpointSpec extends Specification {
+class ReactiveEndpointsSpec extends Specification {
 
     @Autowired
     WebTestClient webClient
@@ -39,7 +39,7 @@ class PermissionsEndpointSpec extends Specification {
 
     def "web client test of /permissions with empty database"() {
         expect:
-        webClient.get().uri("/v1/permissions")
+        webClient.get().uri("/reactive/permissions")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody().json("[]")
