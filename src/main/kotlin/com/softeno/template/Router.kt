@@ -9,8 +9,7 @@ import org.springframework.web.reactive.function.server.*
 class RoutesConfig {
     @Bean
     fun routes(): RouterFunction<ServerResponse> {
-        return RouterFunctions.route(RequestPredicates.GET("/")) { _: ServerRequest
-            ->
+        return RouterFunctions.route(RequestPredicates.GET("/")) { _: ServerRequest ->
             ServerResponse.ok().body(BodyInserters.fromObject(MessageDto(message = "hello world")))
         }
         // .and(...) <- next router function
