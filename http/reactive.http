@@ -1,5 +1,4 @@
-### hello world
-GET http://localhost:8080/
+### Reactive
 
 ###
 GET http://localhost:8080/reactive/permissions?page=0&size=10&sort=id&direction=DESC
@@ -22,8 +21,10 @@ Content-Type: application/json
 ###
 DELETE http://localhost:8080/reactive/permissions/ID
 
+### User
+
 ###
-GET http://localhost:8080/reactive/users?page=0&size=10&sort=id&direction=DESC
+GET http://localhost:8080/reactive/users?page=0&size=10&sort=id&direction=ASC
 
 ###
 POST http://localhost:8080/reactive/users
@@ -36,3 +37,4 @@ GET http://localhost:8080/reactive/users/63c46d8ae5572816b26f39ce/mapped
 
 ###
 GET http://localhost:8080/reactive/users/mapped?page=0&size=10&sort=id&direction=DESC
+

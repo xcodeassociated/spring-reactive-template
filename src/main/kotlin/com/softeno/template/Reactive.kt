@@ -23,7 +23,7 @@ import reactor.kotlin.core.publisher.toMono
 @RestController
 @RequestMapping("/reactive/")
 @Validated
-class ReactiveWebController(
+class ReactivePermissionController(
     val permissionsReactiveRepository: PermissionsReactiveRepository,
     val permissionsReactiveMongoTemplate: PermissionsReactiveMongoTemplate
 ) {
@@ -34,8 +34,9 @@ class ReactiveWebController(
         @RequestParam(required = false, defaultValue = "id") sort: String,
         @RequestParam(required = false, defaultValue = "ASC") direction: String
     ): Flux<Permission> {
-        val sort = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
-        return permissionsReactiveRepository.findAllBy(PageRequest.of(page, size, sort))
+        val pageRequest = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
+            .let { PageRequest.of(page, size, it) }
+        return permissionsReactiveRepository.findAllBy(pageRequest)
     }
 
     @GetMapping("/permissions/{id}")
@@ -56,6 +57,7 @@ class ReactiveWebController(
     @PatchMapping("/permissions/{id}")
     fun updatePermission(@PathVariable id: String, @RequestBody(required = true) input: PermissionInput): Mono<Permission> =
         permissionsReactiveMongoTemplate.findAndModify(id, input)
+            .switchIfEmpty(Mono.error(RuntimeException("Permission: $id Not Found")))
 }
 
 @Repository
@@ -97,8 +99,9 @@ class ReactiveUserController(
         @RequestParam(required = false, defaultValue = "id") sort: String,
         @RequestParam(required = false, defaultValue = "ASC") direction: String
     ): Flux<User> {
-        val sort = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
-        return userReactiveRepository.findAllBy(PageRequest.of(page, size, sort))
+        val pageRequest = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
+            .let { PageRequest.of(page, size, it) }
+        return userReactiveRepository.findAllBy(pageRequest)
     }
 
     @PostMapping("/users")
@@ -118,7 +121,7 @@ class ReactiveUserController(
     }
 
     @GetMapping("/users/{id}/mapped")
-    fun getUSerWithMappedPermissions(@PathVariable id: String): Mono<UserDto> {
+    fun getUserWithMappedPermissions(@PathVariable id: String): Mono<UserDto> {
         val user: Mono<User> = userReactiveRepository.findById(id)
         return user.map { e -> e.permissions }
             .map { e -> permissionsReactiveRepository.findByIdIn(e).collectList() }
@@ -135,8 +138,9 @@ class ReactiveUserController(
         @RequestParam(required = false, defaultValue = "id") sort: String,
         @RequestParam(required = false, defaultValue = "ASC") direction: String
     ): Flux<UserDto> {
-        val sort = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
-        return userReactiveRepository.findAllBy(PageRequest.of(page, size, sort))
+        val pageRequest = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
+            .let { PageRequest.of(page, size, it) }
+        return userReactiveRepository.findAllBy(pageRequest)
             .map { user ->
                 user.toMono().zipWith(user.permissions.toMono())
                     .map { tuple ->
