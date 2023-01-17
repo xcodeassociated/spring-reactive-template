@@ -30,16 +30,19 @@ GET http://localhost:8080/coroutine/users?page=0&size=10&sort=id&direction=ASC
 POST http://localhost:8080/coroutine/users
 Content-Type: application/json
 
-{"name": "user test coroutine", "email":  "test-c@test.com", "permissionIds": ["63c6a66e686f32099dfebd86"]}
+{"name": "user test coroutine", "email":  "test-c@test.com", "role": ["63c6a66e686f32099dfebd86"]}
 
 ###
 PUT http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88
 Content-Type: application/json
 
-{"name": "user test coroutine changed", "email":  "test-c@test.com", "permissionIds": ["63c6a66e686f32099dfebd86"]}
+{"name": "user test coroutine changed", "email":  "test-c@test.com", "role": ["63c6a66e686f32099dfebd86"]}
 
 ###
-GET http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88/mapped
+GET http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88
 
 ###
-GET http://localhost:8080/coroutine/users/mapped?page=0&size=10&sort=id&direction=DESC
+GET http://localhost:8080/coroutine/users/unmapped?page=0&size=10&sort=id&direction=DESC
+
+###
+DELETE http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88

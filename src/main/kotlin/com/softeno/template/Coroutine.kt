@@ -76,7 +76,7 @@ class CoroutineUserController(
     val permissionCoroutineRepository: PermissionCoroutineRepository
 ) {
 
-    @GetMapping("/users")
+    @GetMapping("/users/unmapped")
     fun getAllUsers(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
@@ -112,7 +112,15 @@ class CoroutineUserController(
         )
     }
 
-    @GetMapping("/users/{id}/mapped")
+    @DeleteMapping("/users/{id}")
+    suspend fun deleteUser(@PathVariable id: String) {
+        if (!userCoroutineRepository.existsById(id)) {
+            throw RuntimeException("error: user does not exists")
+        }
+        userCoroutineRepository.deleteById(id)
+    }
+
+    @GetMapping("/users/{id}")
     suspend fun getUserWithMappedPermissions(@PathVariable id: String): UserDto? {
         val user: User = userCoroutineRepository.findById(id) ?: return null
         val userPermissions = user.permissions.asFlow()
@@ -123,7 +131,7 @@ class CoroutineUserController(
         return UserDto(id = user.id!!, name = user.name, email = user.email, permissions = userPermissions)
     }
 
-    @GetMapping("/users/mapped")
+    @GetMapping("/users")
     fun getAllUsersMapped(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,

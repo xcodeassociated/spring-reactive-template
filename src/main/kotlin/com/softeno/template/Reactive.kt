@@ -92,7 +92,7 @@ class ReactiveUserController(
     val userReactiveRepository: UserReactiveRepository,
     val permissionsReactiveRepository: PermissionsReactiveRepository
 ) {
-    @GetMapping("/users")
+    @GetMapping("/users/unmapped")
     fun getAllUsers(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
@@ -140,7 +140,14 @@ class ReactiveUserController(
             .flatMap { e -> e }
     }
 
-    @GetMapping("/users/{id}/mapped")
+    @DeleteMapping("/users/{id}")
+    fun deleteUSer(@PathVariable id: String): Mono<Void> =
+        userReactiveRepository.existsById(id)
+            .filter { it == true }
+            .switchIfEmpty(Mono.error(RuntimeException("error: user does not exists")))
+            .flatMap { userReactiveRepository.deleteById(id) }
+
+    @GetMapping("/users/{id}")
     fun getUserWithMappedPermissions(@PathVariable id: String): Mono<UserDto> {
         val user: Mono<User> = userReactiveRepository.findById(id)
         return user.map { e -> e.permissions }
@@ -151,7 +158,7 @@ class ReactiveUserController(
             }.flatMap { e -> e }
     }
 
-    @GetMapping("/users/mapped")
+    @GetMapping("/users")
     fun getAllUsersMapped(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
@@ -172,5 +179,5 @@ class ReactiveUserController(
             .map { e -> UserDto(id = e.t2.id!!, name = e.t2.name, email = e.t2.email, permissions = e.t1) }
 
     }
-// (...)
+
 }

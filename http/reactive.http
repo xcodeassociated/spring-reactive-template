@@ -30,17 +30,19 @@ GET http://localhost:8080/reactive/users?page=0&size=10&sort=id&direction=ASC
 POST http://localhost:8080/reactive/users
 Content-Type: application/json
 
-{"name": "reactive user test", "email":  "test@test.com", "permissionIds": ["a63c6a4b5abaf1376eafbf3e9"]}
+{"name": "reactive user test", "email":  "test@test.com", "role": ["a63c6a4b5abaf1376eafbf3e9"]}
 
 ###
 PUT http://localhost:8080/reactive/users/63c6a507abaf1376eafbf3ea
 Content-Type: application/json
 
-{"name": "reactive user test changed", "email":  "test@test.com", "permissionIds": ["63c6a4b5abaf1376eafbf3e9"]}
+{"name": "reactive user test changed", "email":  "test@test.com", "role": ["63c6a4b5abaf1376eafbf3e9"]}
 
 ###
-GET http://localhost:8080/reactive/users/63c6a507abaf1376eafbf3ea/mapped
+GET http://localhost:8080/reactive/users/63c6a507abaf1376eafbf3ea
 
 ###
-GET http://localhost:8080/reactive/users/mapped?page=0&size=10&sort=id&direction=DESC
+GET http://localhost:8080/reactive/users/unmapped?page=0&size=10&sort=id&direction=DESC
 
+###
+DELETE http://localhost:8080/reactive/users/63c6a507abaf1376eafbf3ea
