@@ -54,7 +54,7 @@ class ReactivePermissionController(
     fun createPermission(@RequestBody input: PermissionInput): Mono<Permission> =
         permissionsReactiveRepository.save(Permission(id = null, name = input.name, description = input.description))
 
-    @PatchMapping("/permissions/{id}")
+    @PutMapping("/permissions/{id}")
     fun updatePermission(@PathVariable id: String, @RequestBody(required = true) input: PermissionInput): Mono<Permission> =
         permissionsReactiveMongoTemplate.findAndModify(id, input)
             .switchIfEmpty(Mono.error(RuntimeException("Permission: $id Not Found")))
@@ -107,17 +107,37 @@ class ReactiveUserController(
     @PostMapping("/users")
     fun createUser(@RequestBody input: UserInput): Mono<User> {
         val permissions: Mono<List<Permission>> = Flux.fromIterable(input.permissionIds)
-            .flatMap { productId: String -> permissionsReactiveRepository.findById(productId) }
+            .flatMap {
+                    productId: String -> permissionsReactiveRepository.findById(productId)
+                        .switchIfEmpty(Mono.error(RuntimeException("error: permission not found")))
+            }
             .collectList()
 
-        return Mono.just(input.name)
+        return Mono.just(input)
             .zipWith(permissions)
             .map { tuple ->
-                User(id = null, name = tuple.t1, permissions = tuple.t2
+                User(id = null, name = tuple.t1.name, email = tuple.t1.email, permissions = tuple.t2
                     .map { permission -> permission.id!! }
                     .toSet()
                 )
             }.flatMap { e -> userReactiveRepository.save(e) }
+    }
+
+    @PutMapping("/users/{id}")
+    fun updateUser(@PathVariable id: String, @RequestBody input: UserInput): Mono<User> {
+        val permissions: Mono<List<Permission>> = Flux.fromIterable(input.permissionIds)
+            .flatMap { productId: String -> permissionsReactiveRepository.findById(productId)
+                .switchIfEmpty(Mono.error(RuntimeException("error: permission not found")))
+            }
+            .collectList()
+
+        return userReactiveRepository.findById(id)
+            .switchIfEmpty(Mono.error(RuntimeException("error: user not found")))
+            .zipWith(permissions)
+            .map {
+                    tuple -> User(id = tuple.t1.id, name = input.name, email = input.email, permissions = tuple.t2.map { permission -> permission.id!! }.toSet())
+            }.map { e -> userReactiveRepository.save(e) }
+            .flatMap { e -> e }
     }
 
     @GetMapping("/users/{id}/mapped")
@@ -127,7 +147,7 @@ class ReactiveUserController(
             .map { e -> permissionsReactiveRepository.findByIdIn(e).collectList() }
             .map { e ->
                 e.zipWith(user)
-                    .map { tuple -> UserDto(id = tuple.t2.id!!, name = tuple.t2.name, permissions = tuple.t1) }
+                    .map { tuple -> UserDto(id = tuple.t2.id!!, name = tuple.t2.name, email = tuple.t2.email, permissions = tuple.t1) }
             }.flatMap { e -> e }
     }
 
@@ -149,7 +169,7 @@ class ReactiveUserController(
                     }
             }.flatMap { e -> e }
             .flatMap { e -> e }
-            .map { e -> UserDto(id = e.t2.id!!, name = e.t2.name, permissions = e.t1) }
+            .map { e -> UserDto(id = e.t2.id!!, name = e.t2.name, email = e.t2.email, permissions = e.t1) }
 
     }
 // (...)

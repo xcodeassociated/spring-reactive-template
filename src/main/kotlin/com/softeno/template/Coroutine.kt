@@ -51,10 +51,10 @@ class CoroutinePermissionController(
     suspend fun deletePermission(@PathVariable id: String) = permissionCoroutineRepository.deleteById(id)
 
     @PostMapping("/permissions")
-    suspend fun createPermission(@RequestBody input: PermissionInput): Permission =
+    suspend fun createPermission(@RequestBody(required = true) input: PermissionInput): Permission =
         permissionCoroutineRepository.save(Permission(id = null, name = input.name, description = input.description))
 
-    @PatchMapping("/permissions/{id}")
+    @PutMapping("/permissions/{id}")
     suspend fun updatePermission(@PathVariable id: String, @RequestBody(required = true) input: PermissionInput): Permission? =
         // note: we're using reactive api as flow, and then we can get the flow element
         permissionsReactiveMongoTemplate.findAndModify(id, input)
@@ -89,14 +89,26 @@ class CoroutineUserController(
     }
 
     @PostMapping("/users")
-    suspend fun createUser(@RequestBody input: UserInput): User {
+    suspend fun createUser(@RequestBody(required = true) input: UserInput): User {
         val permissions: List<Permission> = input.permissionIds.asFlow()
-            .map { permissionCoroutineRepository.findById(it) }
-            .filterNotNull()
+            .map { permissionCoroutineRepository.findById(it)
+                ?: throw RuntimeException("error: permission not found")
+            }
             .toList()
 
         return userCoroutineRepository.save(
-            User(id = null, name = input.name, permissions = permissions.map { permission -> permission.id!! }.toSet())
+            User(id = null, name = input.name, email = input.email, permissions = permissions.map { permission -> permission.id!! }.toSet())
+        )
+    }
+
+    @PutMapping("/users/{id}")
+    suspend fun updateUser(@PathVariable id: String, @RequestBody(required = true) input: UserInput): User {
+        val permissions: List<Permission> = input.permissionIds
+            .map { permissionCoroutineRepository.findById(it) ?: throw RuntimeException("error: permission not found") }
+
+        val user = userCoroutineRepository.findById(id) ?: throw RuntimeException("error: user not found")
+        return userCoroutineRepository.save(
+            user.copy(name = input.name, email = input.email, permissions = permissions.map { it.id!! }.toSet())
         )
     }
 
@@ -108,7 +120,7 @@ class CoroutineUserController(
             .filterNotNull()
             .toList()
 
-        return UserDto(id = user.id!!, name = user.name, permissions = userPermissions)
+        return UserDto(id = user.id!!, name = user.name, email = user.email, permissions = userPermissions)
     }
 
     @GetMapping("/users/mapped")
@@ -122,7 +134,7 @@ class CoroutineUserController(
             .let { PageRequest.of(page, size, it) }
         return userCoroutineRepository.findAllBy(pageRequest)
             .map { e ->
-                UserDto(id = e.id!!, name = e.name, permissions = e.permissions.mapNotNull { permissionCoroutineRepository.findById(it) })
+                UserDto(id = e.id!!, name = e.name, email = e.email, permissions = e.permissions.mapNotNull { permissionCoroutineRepository.findById(it) })
             }
     }
 }

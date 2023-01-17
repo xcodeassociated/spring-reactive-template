@@ -10,13 +10,13 @@ Content-Type: application/json
 {"name": "test-coroutine", "description": "test description coroutine"}
 
 ###
-GET http://localhost:8080/coroutine/permissions/63c55d4953a2890dbcfc4d82
+GET http://localhost:8080/coroutine/permissions/63c6a66e686f32099dfebd86
 
 ###
-PATCH http://localhost:8080/coroutine/permissions/63c55d4953a2890dbcfc4d82
+PUT http://localhost:8080/coroutine/permissions/63c6a66e686f32099dfebd86
 Content-Type: application/json
 
-{"name": "test-changed-coroutine-2", "description": "test description coroutine changed!"}
+{"name": "test-coroutine-changed", "description": "test description coroutine changed!"}
 
 ###
 DELETE http://localhost:8080/coroutine/permissions/ID
@@ -30,10 +30,16 @@ GET http://localhost:8080/coroutine/users?page=0&size=10&sort=id&direction=ASC
 POST http://localhost:8080/coroutine/users
 Content-Type: application/json
 
-{"name": "user test coroutine", "permissionIds": ["63c55d4953a2890dbcfc4d82"]}
+{"name": "user test coroutine", "email":  "test-c@test.com", "permissionIds": ["63c6a66e686f32099dfebd86"]}
 
 ###
-GET http://localhost:8080/coroutine/users/63c5662b7e113147cb6cb603/mapped
+PUT http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88
+Content-Type: application/json
+
+{"name": "user test coroutine changed", "email":  "test-c@test.com", "permissionIds": ["63c6a66e686f32099dfebd86"]}
+
+###
+GET http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88/mapped
 
 ###
 GET http://localhost:8080/coroutine/users/mapped?page=0&size=10&sort=id&direction=DESC

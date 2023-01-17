@@ -8,10 +8,8 @@ import org.springframework.data.mongodb.core.mapping.Document
 data class Permission(
     @Id
     val id: String?,
-
     @Indexed(unique = true)
     val name: String,
-
     val description: String
 )
 
@@ -20,6 +18,8 @@ data class User(
     @Id
     val id: String?,
     val name: String,
+    @Indexed(unique = true)
+    val email: String,
     val permissions: Set<String>
 )
 
@@ -30,11 +30,13 @@ data class PermissionInput(
 
 data class UserInput(
     val name: String,
+    val email: String,
     val permissionIds: Set<String>
 )
 
 data class UserDto(
     val id: String,
     val name: String,
+    val email: String,
     val permissions: List<Permission>
 )
