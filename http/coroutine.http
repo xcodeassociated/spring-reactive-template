@@ -42,7 +42,4 @@ Content-Type: application/json
 GET http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88
 
 ###
-GET http://localhost:8080/coroutine/users/unmapped?page=0&size=10&sort=id&direction=DESC
-
-###
 DELETE http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88

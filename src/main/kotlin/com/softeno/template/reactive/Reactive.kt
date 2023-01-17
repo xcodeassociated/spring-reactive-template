@@ -1,5 +1,10 @@
-package com.softeno.template
+package com.softeno.template.reactive
 
+import com.softeno.template.*
+import com.softeno.template.coroutine.dto.*
+import com.softeno.template.db.Permission
+import com.softeno.template.db.QPermission
+import com.softeno.template.db.User
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
@@ -33,31 +38,34 @@ class ReactivePermissionController(
         @RequestParam(required = false, defaultValue = "10") size: Int,
         @RequestParam(required = false, defaultValue = "id") sort: String,
         @RequestParam(required = false, defaultValue = "ASC") direction: String
-    ): Flux<Permission> {
+    ): Flux<PermissionDto> {
         val pageRequest = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
             .let { PageRequest.of(page, size, it) }
         return permissionsReactiveRepository.findAllBy(pageRequest)
+            .map { it.toDto() }
     }
 
     @GetMapping("/permissions/{id}")
-    fun getPermission(@PathVariable id: String): Mono<Permission> {
+    fun getPermission(@PathVariable id: String): Mono<PermissionDto> {
         // note: ReactiveMongoRepository -> return permissionsReactiveRepository.findById(id)
         val permission = QPermission.permission
         val predicate = permission.id.eq(id)
         return permissionsReactiveRepository.findOne(predicate)
+            .map { it.toDto() }
     }
 
     @DeleteMapping("/permissions/{id}")
     fun deletePermission(@PathVariable id: String): Mono<Void> = permissionsReactiveRepository.deleteById(id)
 
     @PostMapping("/permissions")
-    fun createPermission(@RequestBody input: PermissionInput): Mono<Permission> =
-        permissionsReactiveRepository.save(Permission(id = null, name = input.name, description = input.description))
+    fun createPermission(@RequestBody input: PermissionInput): Mono<PermissionDto> =
+        permissionsReactiveRepository.save(input.toDocument()).map { it.toDto() }
 
     @PutMapping("/permissions/{id}")
-    fun updatePermission(@PathVariable id: String, @RequestBody(required = true) input: PermissionInput): Mono<Permission> =
+    fun updatePermission(@PathVariable id: String, @RequestBody(required = true) input: PermissionInput): Mono<PermissionDto> =
         permissionsReactiveMongoTemplate.findAndModify(id, input)
             .switchIfEmpty(Mono.error(RuntimeException("Permission: $id Not Found")))
+            .map { it.toDto() }
 }
 
 @Repository
@@ -92,20 +100,8 @@ class ReactiveUserController(
     val userReactiveRepository: UserReactiveRepository,
     val permissionsReactiveRepository: PermissionsReactiveRepository
 ) {
-    @GetMapping("/users/unmapped")
-    fun getAllUsers(
-        @RequestParam(required = false, defaultValue = "0") page: Int,
-        @RequestParam(required = false, defaultValue = "10") size: Int,
-        @RequestParam(required = false, defaultValue = "id") sort: String,
-        @RequestParam(required = false, defaultValue = "ASC") direction: String
-    ): Flux<User> {
-        val pageRequest = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
-            .let { PageRequest.of(page, size, it) }
-        return userReactiveRepository.findAllBy(pageRequest)
-    }
-
     @PostMapping("/users")
-    fun createUser(@RequestBody input: UserInput): Mono<User> {
+    fun createUser(@RequestBody input: UserInput): Mono<UserDto> {
         val permissions: Mono<List<Permission>> = Flux.fromIterable(input.permissionIds)
             .flatMap {
                     productId: String -> permissionsReactiveRepository.findById(productId)
@@ -121,10 +117,12 @@ class ReactiveUserController(
                     .toSet()
                 )
             }.flatMap { e -> userReactiveRepository.save(e) }
+            .zipWith(permissions)
+            .map { tuple -> tuple.t1.toDto(tuple.t2) }
     }
 
     @PutMapping("/users/{id}")
-    fun updateUser(@PathVariable id: String, @RequestBody input: UserInput): Mono<User> {
+    fun updateUser(@PathVariable id: String, @RequestBody input: UserInput): Mono<UserDto> {
         val permissions: Mono<List<Permission>> = Flux.fromIterable(input.permissionIds)
             .flatMap { productId: String -> permissionsReactiveRepository.findById(productId)
                 .switchIfEmpty(Mono.error(RuntimeException("error: permission not found")))
@@ -138,6 +136,8 @@ class ReactiveUserController(
                     tuple -> User(id = tuple.t1.id, name = input.name, email = input.email, permissions = tuple.t2.map { permission -> permission.id!! }.toSet())
             }.map { e -> userReactiveRepository.save(e) }
             .flatMap { e -> e }
+            .zipWith(permissions)
+            .map { tuple -> tuple.t1.toDto(tuple.t2) }
     }
 
     @DeleteMapping("/users/{id}")
@@ -154,7 +154,7 @@ class ReactiveUserController(
             .map { e -> permissionsReactiveRepository.findByIdIn(e).collectList() }
             .map { e ->
                 e.zipWith(user)
-                    .map { tuple -> UserDto(id = tuple.t2.id!!, name = tuple.t2.name, email = tuple.t2.email, permissions = tuple.t1) }
+                    .map { tuple -> tuple.t2.toDto(tuple.t1) }
             }.flatMap { e -> e }
     }
 
@@ -176,8 +176,7 @@ class ReactiveUserController(
                     }
             }.flatMap { e -> e }
             .flatMap { e -> e }
-            .map { e -> UserDto(id = e.t2.id!!, name = e.t2.name, email = e.t2.email, permissions = e.t1) }
-
+            .map { e -> e.t2.toDto(e.t1) }
     }
 
 }

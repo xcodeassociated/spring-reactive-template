@@ -1,4 +1,4 @@
-package com.softeno.template
+package com.softeno.template.coroutine.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

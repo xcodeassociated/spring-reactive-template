@@ -1,6 +1,7 @@
 package com.softeno.template
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.softeno.template.router.MessageDto
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.web.reactive.server.WebTestClient

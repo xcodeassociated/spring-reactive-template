@@ -1,4 +1,4 @@
-package com.softeno.template.playground
+package com.softeno.template.coroutine.playground
 
 import kotlinx.coroutines.*
 import org.slf4j.Logger
