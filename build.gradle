@@ -53,6 +53,9 @@ dependencies {
 		exclude group: 'org.mongodb', module: 'mongo-java-driver'
 	}
 	kapt group: 'com.querydsl', name: 'querydsl-apt', version: '5.0.0'
+
+	// rsocket
+	implementation 'org.springframework.boot:spring-boot-starter-rsocket'
 }
 
 tasks.withType(KotlinCompile) {

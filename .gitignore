@@ -39,4 +39,5 @@ out/
 .DS_Store
 
 volumes/
-docker/volumes
+docker/mongo/volumes
+docker/mongo-rs/volumes

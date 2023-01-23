@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+  mongo:
+    container_name: mongo_rs_primary
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    entrypoint: [ "/usr/bin/mongod", "--config", "/etc/mongod.conf", "--bind_ip_all", "--replSet", "rs0" ]
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=user
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=example_db
+    volumes:
+      - mongo-rs-primary-data:/data/db
+      - "./config/mongodb/mongod.conf:/etc/mongod.conf"
+
+volumes:
+  mongo-rs-primary-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./volumes/mongodb
