@@ -5,10 +5,12 @@ import com.softeno.template.coroutine.dto.*
 import com.softeno.template.db.Permission
 import com.softeno.template.db.QPermission
 import com.softeno.template.db.User
+import com.softeno.template.event.AppEvent
 import com.softeno.template.reactive.PermissionsReactiveMongoTemplate
 import com.softeno.template.reactive.PermissionsReactiveRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.reactive.asFlow
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Pageable
 import org.springframework.data.querydsl.ReactiveQuerydslPredicateExecutor
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
@@ -78,7 +80,8 @@ interface UserCoroutineRepository : CoroutineCrudRepository<User, String> {
 @Validated
 class CoroutineUserController(
     val userCoroutineRepository: UserCoroutineRepository,
-    val permissionCoroutineRepository: PermissionCoroutineRepository
+    val permissionCoroutineRepository: PermissionCoroutineRepository,
+    val applicationEventPublisher: ApplicationEventPublisher
 ) {
 
     @PostMapping("/users")
@@ -89,9 +92,9 @@ class CoroutineUserController(
             }
             .toList()
 
-        return userCoroutineRepository.save(
-            User(id = null, name = input.name, email = input.email, permissions = permissions.map { permission -> permission.id!! }.toSet())
-        ).toDto(permissions)
+        return userCoroutineRepository.save(User(id = null, name = input.name, email = input.email, permissions = permissions.map { permission -> permission.id!! }.toSet()))
+            .also { applicationEventPublisher.publishEvent(AppEvent("USER_CREATED_COROUTINE: ${it.id}")) }
+            .toDto(permissions)
     }
 
     @PutMapping("/users/{id}")

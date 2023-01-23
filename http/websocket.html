@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+    <title>WebSocket</title>
+    <meta charset="UTF-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+</head>
+<body>
+<script>
+    $(document).ready(function () {
+        console.log(">> document loaded");
+
+        var socket = new WebSocket('ws://localhost:8080/ws/users');
+        socket.addEventListener('message', function (event) {
+            console.log("received: " + event.data)
+            window.alert('message from server: ' + event.data);
+        });
+    });
+</script>
+</body>
+</html>

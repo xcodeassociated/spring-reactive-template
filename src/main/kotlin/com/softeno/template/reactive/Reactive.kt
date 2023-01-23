@@ -5,6 +5,8 @@ import com.softeno.template.coroutine.dto.*
 import com.softeno.template.db.Permission
 import com.softeno.template.db.QPermission
 import com.softeno.template.db.User
+import com.softeno.template.event.AppEvent
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
@@ -98,7 +100,8 @@ interface UserReactiveRepository : ReactiveMongoRepository<User, String>, Reacti
 @Validated
 class ReactiveUserController(
     val userReactiveRepository: UserReactiveRepository,
-    val permissionsReactiveRepository: PermissionsReactiveRepository
+    val permissionsReactiveRepository: PermissionsReactiveRepository,
+    val applicationEventPublisher: ApplicationEventPublisher
 ) {
     @PostMapping("/users")
     fun createUser(@RequestBody input: UserInput): Mono<UserDto> {
@@ -117,6 +120,7 @@ class ReactiveUserController(
                     .toSet()
                 )
             }.flatMap { e -> userReactiveRepository.save(e) }
+            .doOnSuccess { applicationEventPublisher.publishEvent(AppEvent("USER_CREATED_REACTIVE: ${it.id}")) }
             .zipWith(permissions)
             .map { tuple -> tuple.t1.toDto(tuple.t2) }
     }
