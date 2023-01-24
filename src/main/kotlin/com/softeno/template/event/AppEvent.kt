@@ -13,7 +13,7 @@ import java.util.function.Consumer
 data class AppEvent(val source: String) : ApplicationEvent(source)
 
 @Component
-class SampleApplicationEventPublisher(@Qualifier("websocketExecutor") executor: Executor) : ApplicationListener<AppEvent>, Consumer<FluxSink<AppEvent>> {
+class SampleApplicationEventPublisher(@Qualifier("websocketNotificationExecutor") executor: Executor) : ApplicationListener<AppEvent>, Consumer<FluxSink<AppEvent>> {
     private val executor: Executor
     private val queue: BlockingQueue<AppEvent> = LinkedBlockingQueue()
 
