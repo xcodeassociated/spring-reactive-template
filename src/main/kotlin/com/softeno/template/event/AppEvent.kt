@@ -1,36 +1,23 @@
 package com.softeno.template.event
 
-import org.springframework.beans.factory.annotation.Qualifier
+import com.softeno.template.websocket.ReactiveMessageService
+import com.softeno.template.websocket.Message
+import org.apache.commons.logging.LogFactory
 import org.springframework.context.ApplicationEvent
 import org.springframework.context.ApplicationListener
 import org.springframework.stereotype.Component
-import reactor.core.publisher.FluxSink
-import java.util.concurrent.BlockingQueue
-import java.util.concurrent.Executor
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.function.Consumer
 
 data class AppEvent(val source: String) : ApplicationEvent(source)
 
 @Component
-class SampleApplicationEventPublisher(@Qualifier("websocketNotificationExecutor") executor: Executor) : ApplicationListener<AppEvent>, Consumer<FluxSink<AppEvent>> {
-    private val executor: Executor
-    private val queue: BlockingQueue<AppEvent> = LinkedBlockingQueue()
-
-    init {
-        this.executor = executor
-    }
+class SampleApplicationEventPublisher(private val reactiveMessageService: ReactiveMessageService) : ApplicationListener<AppEvent> {
+    private val log = LogFactory.getLog(javaClass)
 
     override fun onApplicationEvent(event: AppEvent) {
-        queue.offer(event)
+        log.info("[event handler]: Received event: $event")
+        reactiveMessageService.broadcast(event.toMessage())
     }
 
-    override fun accept(sink: FluxSink<AppEvent>) {
-        executor.execute {
-            while (true) {
-                val event: AppEvent = queue.take()
-                sink.next(event)
-            }
-        }
-    }
 }
+
+fun AppEvent.toMessage() = Message(from = "SYSTEM", to = "ALL", content = this.source)
