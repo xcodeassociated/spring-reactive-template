@@ -4,6 +4,8 @@ import org.apache.commons.logging.LogFactory
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.springframework.boot.CommandLineRunner
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
@@ -14,20 +16,20 @@ import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 import reactor.kafka.sender.SenderResult
 import java.util.*
-import java.util.function.Consumer
 
 
-const val TOPIC_RX = "sample_topic_2"
-const val TOPIC_TX = "sample_topic_2"
+@ConfigurationProperties(prefix = "com.softeno.kafka")
+@ConstructorBinding
+data class KafkaApplicationProperties(val tx: String, val rx: String)
 
 data class KafkaMessage(val content: String)
 
 @Configuration
 class ReactiveKafkaConsumerConfig {
     @Bean
-    fun kafkaReceiverOptions(kafkaProperties: KafkaProperties): ReceiverOptions<String, KafkaMessage> {
+    fun kafkaReceiverOptions(kafkaProperties: KafkaProperties, props: KafkaApplicationProperties): ReceiverOptions<String, KafkaMessage> {
         val basicReceiverOptions: ReceiverOptions<String, KafkaMessage> = ReceiverOptions.create(kafkaProperties.buildConsumerProperties())
-        return basicReceiverOptions.subscription(Collections.singletonList(TOPIC_RX))
+        return basicReceiverOptions.subscription(Collections.singletonList(props.rx))
     }
 
     @Bean
@@ -71,12 +73,12 @@ class ReactiveConsumerService(private val reactiveKafkaConsumerTemplate: Reactiv
 }
 
 @Service
-class ReactiveKafkaProducerService(private val reactiveKafkaProducerTemplate: ReactiveKafkaProducerTemplate<String, KafkaMessage>) {
+class ReactiveKafkaProducerService(private val reactiveKafkaProducerTemplate: ReactiveKafkaProducerTemplate<String, KafkaMessage>, private val props: KafkaApplicationProperties) {
     private val log = LogFactory.getLog(javaClass)
 
     fun send(message: KafkaMessage) {
-        log.info("[kafka] tx: topic: $TOPIC_TX, message: $message")
-        reactiveKafkaProducerTemplate.send(TOPIC_TX, message)
+        log.info("[kafka] tx: topic: ${props.tx}, message: $message")
+        reactiveKafkaProducerTemplate.send(props.tx, message)
             .doOnSuccess { senderResult: SenderResult<Void> ->
                 log.info("[kafka] tx ok, offset: ${senderResult.recordMetadata().offset()}")
             }
