@@ -38,7 +38,10 @@ out/
 
 .DS_Store
 
+logs/
+
 volumes/
 docker/mongo/volumes
 docker/mongo-rs/volumes
 docker/kafka/volumes
+
