@@ -30,7 +30,7 @@ GET http://localhost:8080/reactive/users?page=0&size=10&sort=id&direction=ASC
 POST http://localhost:8080/reactive/users
 Content-Type: application/json
 
-{"name": "reactive user test", "email":  "test@test.com", "role": ["a63c6a4b5abaf1376eafbf3e9"]}
+{"name": "reactive user test", "email":  "z233234393ztest@test.com", "role": []}
 
 ###
 PUT http://localhost:8080/reactive/users/63c6a507abaf1376eafbf3ea

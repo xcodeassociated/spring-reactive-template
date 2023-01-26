@@ -56,6 +56,12 @@ dependencies {
 
 	// rsocket
 	implementation 'org.springframework.boot:spring-boot-starter-rsocket'
+
+	// kafka
+	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'io.projectreactor.kafka:reactor-kafka'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
+
 }
 
 tasks.withType(KotlinCompile) {
