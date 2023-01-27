@@ -1,5 +1,11 @@
 package com.softeno.template.config
 
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
+import io.github.resilience4j.timelimiter.TimeLimiterConfig
+import org.springframework.cloud.circuitbreaker.resilience4j.ReactiveResilience4JCircuitBreakerFactory
+import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JConfigBuilder
+import org.springframework.cloud.client.circuitbreaker.Customizer
+import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
@@ -12,10 +18,11 @@ import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 
 @Configuration
-class CorsConfiguration {
+class CorsConfig {
     @Bean
     fun corsFilter(): WebFilter {
         return WebFilter { ctx: ServerWebExchange, chain: WebFilterChain ->
@@ -43,4 +50,27 @@ class CorsConfiguration {
         private const val ALLOWED_ORIGIN = "*"
         private const val MAX_AGE = "3600"
     }
+}
+
+@Configuration
+class ReactiveCircuitBreakerConfig {
+    @Bean
+    fun reactiveResilience4JCircuitBreakerFactory(): ReactiveCircuitBreakerFactory<*, *> {
+        return ReactiveResilience4JCircuitBreakerFactory()
+    }
+
+    @Bean
+    fun defaultCustomizer(): Customizer<ReactiveResilience4JCircuitBreakerFactory> {
+        return Customizer { factory: ReactiveResilience4JCircuitBreakerFactory ->
+            factory.configureDefault { id: String ->
+                Resilience4JConfigBuilder(id)
+                    .circuitBreakerConfig(CircuitBreakerConfig.ofDefaults())
+                    .timeLimiterConfig(
+                        TimeLimiterConfig.custom().timeoutDuration(Duration.ofSeconds(3)).build()
+                    )
+                    .build()
+            }
+        }
+    }
+
 }

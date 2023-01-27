@@ -17,3 +17,6 @@ Content-Type: application/json
 
 ###
 DELETE http://localhost:8080/external/1
+
+### NO FALLBACK
+GET http://localhost:8080/external/throw-on-fallback/1

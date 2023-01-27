@@ -31,8 +31,8 @@ import reactor.kotlin.core.publisher.toMono
 @RequestMapping("/reactive/")
 @Validated
 class ReactivePermissionController(
-    val permissionsReactiveRepository: PermissionsReactiveRepository,
-    val permissionsReactiveMongoTemplate: PermissionsReactiveMongoTemplate
+    private val permissionsReactiveRepository: PermissionsReactiveRepository,
+    private val permissionsReactiveMongoTemplate: PermissionsReactiveMongoTemplate
 ) {
     @GetMapping("/permissions")
     fun getAllPermissions(

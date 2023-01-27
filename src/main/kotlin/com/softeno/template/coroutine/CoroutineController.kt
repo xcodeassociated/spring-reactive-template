@@ -30,9 +30,9 @@ interface PermissionCoroutineRepository :
 @RequestMapping("/coroutine/")
 @Validated
 class CoroutinePermissionController(
-    val permissionCoroutineRepository: PermissionCoroutineRepository,
-    val permissionsReactiveMongoTemplate: PermissionsReactiveMongoTemplate,
-    val permissionsReactiveRepository: PermissionsReactiveRepository
+    private val permissionCoroutineRepository: PermissionCoroutineRepository,
+    private val permissionsReactiveMongoTemplate: PermissionsReactiveMongoTemplate,
+    private val permissionsReactiveRepository: PermissionsReactiveRepository
 ) {
     @GetMapping("/permissions")
     fun getAllPermissions(

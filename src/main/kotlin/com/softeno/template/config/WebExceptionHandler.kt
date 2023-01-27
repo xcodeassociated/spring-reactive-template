@@ -1,5 +1,6 @@
 package com.softeno.template.config
 
+import com.softeno.template.coroutine.ExternalServiceException
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.web.WebProperties
 import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler
@@ -52,18 +53,23 @@ class GlobalErrorWebExceptionHandler(
         val errorAttributes: MutableMap<String, Any> = this.getErrorAttributes(request, includeStackTrace)
         val error = getError(request)
 
-        // note: generic RuntimeException handler
-        if (error is RuntimeException) {
-            val httpStatus = HttpStatus.INTERNAL_SERVER_ERROR // note: can be taken from custom exception
-            errorAttributes["errorCode"] = "E000" // note: custom error code from exception
-            errorAttributes["message"] = error.message ?: "" // note: custom message
-            errorAttributes["status"] = httpStatus.value()
+        var httpStatus: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR // note: can be taken from custom exception
+        errorAttributes["errorCode"] = "E000" // note: custom error code from exception
 
-            errorAttributes.remove("trace") // note: trace (stacktrace) omitted, can be also configured by: `includeStackTrace = false`
-
-            val correspondentStatus = HttpStatus.valueOf(httpStatus.value())
-            errorAttributes["error"] = correspondentStatus.reasonPhrase
+        if (error is ExternalServiceException) {
+            httpStatus = HttpStatus.SERVICE_UNAVAILABLE
+            errorAttributes["errorCode"] = "E100"
+        } else { // note: generic RuntimeException handler
+            // ...
         }
+
+        errorAttributes["message"] = error.message ?: "" // note: custom message
+        errorAttributes["status"] = httpStatus.value()
+
+        errorAttributes.remove("trace") // note: trace (stacktrace) omitted, can be also configured by: `includeStackTrace = false`
+
+        val correspondentStatus = HttpStatus.valueOf(httpStatus.value())
+        errorAttributes["error"] = correspondentStatus.reasonPhrase
 
         return errorAttributes
     }

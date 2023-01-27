@@ -10,7 +10,7 @@ import org.springframework.web.reactive.function.client.WebClient
 
 @ConfigurationProperties(prefix = "com.softeno.external")
 @ConstructorBinding
-data class ExternalClientConfig(val url: String)
+data class ExternalClientConfig(val url: String, val name: String)
 
 @Configuration
 class WebClientConfig {
