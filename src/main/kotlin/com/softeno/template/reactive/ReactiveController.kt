@@ -1,10 +1,10 @@
 package com.softeno.template.reactive
 
 import com.softeno.template.*
-import com.softeno.template.coroutine.dto.*
 import com.softeno.template.db.Permission
 import com.softeno.template.db.QPermission
 import com.softeno.template.db.User
+import com.softeno.template.dto.*
 import com.softeno.template.event.AppEvent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest

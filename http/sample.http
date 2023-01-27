@@ -1,0 +1,19 @@
+### Sample Endpoint HTTP
+
+###
+GET http://localhost:8080/sample/1
+
+###
+POST http://localhost:8080/sample
+Content-Type: application/json
+
+{"data": "sample data node"}
+
+###
+PUT http://localhost:8080/sample/1
+Content-Type: application/json
+
+{"data": "sample data node"}
+
+###
+DELETE http://localhost:8080/sample/1

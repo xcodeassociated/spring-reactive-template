@@ -1,4 +1,4 @@
-package com.softeno.template.coroutine.config
+package com.softeno.template.config
 
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.web.WebProperties

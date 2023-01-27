@@ -8,6 +8,7 @@ plugins {
 	id 'groovy'
 	id 'com.ewerk.gradle.plugins.querydsl' version '1.0.10'
 	id "org.jetbrains.kotlin.kapt" version "1.8.0"
+	id "com.google.osdetector" version "1.7.2"
 }
 
 group = 'com.softeno'
@@ -62,6 +63,10 @@ dependencies {
 	implementation 'io.projectreactor.kafka:reactor-kafka'
 	testImplementation 'org.springframework.kafka:spring-kafka-test'
 
+	// macOs ARM only
+	if (osdetector.classifier == "osx-aarch_64") {
+		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.87.Final:${osdetector.classifier}")
+	}
 }
 
 tasks.withType(KotlinCompile) {
