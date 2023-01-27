@@ -9,7 +9,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Profile
 import org.springframework.context.event.EventListener
-import org.springframework.scheduling.annotation.EnableAsync
 import org.springframework.stereotype.Component
 
 
@@ -22,7 +21,6 @@ fun main(args: Array<String>) {
 	runApplication<SoftenoReactiveMongoApp>(*args)
 }
 
-@EnableAsync
 @Component
 @Profile("playgroud")
 class SpringApplicationReadyEventListener {

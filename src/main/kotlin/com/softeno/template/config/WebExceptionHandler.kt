@@ -1,6 +1,7 @@
 package com.softeno.template.config
 
 import com.softeno.template.coroutine.ExternalServiceException
+import org.apache.commons.logging.LogFactory
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.web.WebProperties
 import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler
@@ -41,7 +42,7 @@ class GlobalErrorWebExceptionHandler(
         this.setMessageReaders(configurer.readers);
     }
 
-    private val logger = LoggerFactory.getLogger(this::class.java)
+    private val log = LogFactory.getLog(javaClass)
 
     override fun getRoutingFunction(errorAttributes: ErrorAttributes?): RouterFunction<ServerResponse?> {
         return RouterFunctions.route(
@@ -52,6 +53,7 @@ class GlobalErrorWebExceptionHandler(
     private fun getCustomErrorAttributes(request: ServerRequest, includeStackTrace: Boolean): Map<String, Any> {
         val errorAttributes: MutableMap<String, Any> = this.getErrorAttributes(request, includeStackTrace)
         val error = getError(request)
+        log.error("[exception handler]: Handling exception: $error")
 
         var httpStatus: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR // note: can be taken from custom exception
         errorAttributes["errorCode"] = "E000" // note: custom error code from exception
@@ -77,7 +79,7 @@ class GlobalErrorWebExceptionHandler(
     private fun renderErrorResponse(request: ServerRequest): Mono<ServerResponse?> {
         val errorPropertiesMap = getCustomErrorAttributes(request, includeStackTrace = true)
 
-        logger.warn("Unhandled exception of error code: ${errorPropertiesMap["errorCode"]} " +
+        log.warn("Rendering response for exception of error code: ${errorPropertiesMap["errorCode"]} " +
                 "and type: ${errorPropertiesMap["error"]} with properties: $errorPropertiesMap")
 
         return ServerResponse.status(HttpStatus.valueOf(errorPropertiesMap["status"] as Int))

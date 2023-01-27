@@ -1,0 +1,13 @@
+### Async Controller HTTP
+
+###
+GET http://localhost:8080/async/result
+
+###
+GET http://localhost:8080/async/void
+
+###
+GET http://localhost:8080/async/fail
+
+###
+GET http://localhost:8080/async/void-fail
