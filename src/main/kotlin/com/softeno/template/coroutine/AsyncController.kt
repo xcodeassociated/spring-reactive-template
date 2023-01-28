@@ -22,7 +22,7 @@ class AsyncController(private val asyncService: AsyncService) {
     suspend fun asyncResultHandler(): String? {
         log.info("[async]: triggering async method with result ...")
 
-        val resultFuture: CompletableFuture<String> = asyncService.asyncMethodWithReturnType("test")
+        val resultFuture: CompletableFuture<String> = asyncService.asyncMethodWithReturnType("test", 5_000)
         val result: String? = Mono.fromFuture(resultFuture).awaitSingleOrNull()
 
         log.info("[async]: finished with result: $result")
@@ -32,14 +32,14 @@ class AsyncController(private val asyncService: AsyncService) {
     @GetMapping("/void")
     fun asyncVoidHandler() {
         log.info("[async]: triggering async method without result ...")
-        asyncService.asyncMethodVoid("test")
+        asyncService.asyncMethodVoid("test", 5_000)
     }
 
     @GetMapping("/fail")
     suspend fun asyncResultWithFailHandler(): String? {
         log.info("[async]: triggering async method with result and fail ...")
 
-        val resultFuture: CompletableFuture<String> = asyncService.asyncMethodFail("fail")
+        val resultFuture: CompletableFuture<String> = asyncService.asyncMethodFail("fail", 2_000)
         return Mono.fromFuture(resultFuture)
             // note: in case of spring async the webflux exception handler will not be invoked since the thread pool does not belong to webflux context;
             //       exception has to be handled inside monad of Mono (proof: look at logger at thread name)
@@ -54,7 +54,7 @@ class AsyncController(private val asyncService: AsyncService) {
     @GetMapping("/void-fail")
     fun asyncVoidFailHandler() {
         log.info("[async]: triggering async method without result and with fail ...")
-        asyncService.asyncMethodVoidFail("test")
+        asyncService.asyncMethodVoidFail("void-fail", 2_000)
     }
 
 }
@@ -64,10 +64,10 @@ class AsyncService {
     private val log = LogFactory.getLog(javaClass)
 
     @Async(value = "asyncExecutor")
-    fun asyncMethodWithReturnType(input: String): CompletableFuture<String> {
+    fun asyncMethodWithReturnType(input: String, delay: Long): CompletableFuture<String> {
         log.info("[async]: async method invoked")
         try {
-            Thread.sleep(5_000)
+            Thread.sleep(delay)
             val result = "FUTURE_DONE: $input"
             log.info("[async]: async method finished with result: $result")
             return CompletableFuture.completedFuture(result)
@@ -78,10 +78,10 @@ class AsyncService {
     }
 
     @Async(value = "asyncExecutor")
-    fun asyncMethodVoid(input: String) {
+    fun asyncMethodVoid(input: String, delay: Long) {
         log.info("[async]: async void method invoked")
         try {
-            Thread.sleep(5_000)
+            Thread.sleep(delay)
             val result = "VOID_DONE: $input"
             log.info("[async]: async void method finished with result: $result")
         } catch (e: InterruptedException) {
@@ -90,10 +90,10 @@ class AsyncService {
     }
 
     @Async(value = "asyncExecutor")
-    fun asyncMethodFail(input: String): CompletableFuture<String> {
+    fun asyncMethodFail(input: String, delay: Long): CompletableFuture<String> {
         log.info("[async]: async void method invoked")
         try {
-            Thread.sleep(2_000)
+            Thread.sleep(delay)
             log.error("[async]: Error occurred during async process...")
             throw RuntimeException("ASYNC_METHOD_EXCEPTION")
         } catch (e: InterruptedException) {
@@ -103,10 +103,10 @@ class AsyncService {
     }
 
     @Async(value = "asyncExecutor")
-    fun asyncMethodVoidFail(input: String) {
+    fun asyncMethodVoidFail(input: String, delay: Long) {
         log.info("[async]: async void method invoked")
         try {
-            Thread.sleep(2_000)
+            Thread.sleep(delay)
             log.error("[async]: Error occurred during async void process...")
             throw RuntimeException("ASYNC_METHOD_EXCEPTION")
         } catch (e: InterruptedException) {
