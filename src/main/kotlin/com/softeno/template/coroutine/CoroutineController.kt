@@ -10,14 +10,21 @@ import com.softeno.template.reactive.PermissionsReactiveMongoTemplate
 import com.softeno.template.reactive.PermissionsReactiveRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.reactive.asFlow
+import kotlinx.coroutines.reactive.awaitSingle
+import org.apache.commons.logging.LogFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Pageable
 import org.springframework.data.querydsl.ReactiveQuerydslPredicateExecutor
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.core.context.ReactiveSecurityContextHolder
+import org.springframework.security.oauth2.core.user.OAuth2User
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.stereotype.Repository
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Mono
+import java.security.Principal
 
 
 @Repository
@@ -34,12 +41,14 @@ class CoroutinePermissionController(
     private val permissionsReactiveMongoTemplate: PermissionsReactiveMongoTemplate,
     private val permissionsReactiveRepository: PermissionsReactiveRepository
 ) {
+//    @PreAuthorize(value = "hasRole('admin')")
     @GetMapping("/permissions")
     fun getAllPermissions(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
         @RequestParam(required = false, defaultValue = "id") sort: String,
-        @RequestParam(required = false, defaultValue = "ASC") direction: String
+        @RequestParam(required = false, defaultValue = "ASC") direction: String,
+        @AuthenticationPrincipal oauth2User: Mono<OAuth2User>
     ): Flow<PermissionDto> =
         permissionCoroutineRepository.findAllBy(getPageRequest(page, size, sort, direction))
             .map { it.toDto() }
@@ -83,9 +92,11 @@ class CoroutineUserController(
     val permissionCoroutineRepository: PermissionCoroutineRepository,
     val applicationEventPublisher: ApplicationEventPublisher
 ) {
+    private val log = LogFactory.getLog(javaClass)
 
+//    @PreAuthorize(value = "hasRole('admin')")
     @PostMapping("/users")
-    suspend fun createUser(@RequestBody(required = true) input: UserInput): UserDto {
+    suspend fun createUser(@RequestBody(required = true) input: UserInput, @AuthenticationPrincipal oauth2User: Mono<OAuth2User>): UserDto {
         val permissions: List<Permission> = input.permissionIds.asFlow()
             .map { permissionCoroutineRepository.findById(it)
                 ?: throw RuntimeException("error: permission not found")
@@ -127,13 +138,28 @@ class CoroutineUserController(
     }
 
     @GetMapping("/users")
-    fun getAllUsersMapped(
+    suspend fun getAllUsersMapped(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
         @RequestParam(required = false, defaultValue = "id") sort: String,
-        @RequestParam(required = false, defaultValue = "ASC") direction: String
-    ): Flow<UserDto> =
-        userCoroutineRepository.findAllBy(getPageRequest(page, size, sort, direction))
+        @RequestParam(required = false, defaultValue = "ASC") direction: String,
+        @AuthenticationPrincipal monoPrincipal: Mono<Principal>,
+    ): Flow<UserDto> {
+        val principal = monoPrincipal.awaitSingle()
+        log.info("principal: $principal, name: ${principal.name}")
+        val authentication = ReactiveSecurityContextHolder.getContext().map { it.authentication }.awaitSingle()
+        val token = (authentication as JwtAuthenticationToken).token
+        val userId = token.claims["sub"]
+        val authorities = authentication.authorities
+        log.debug("authentication: $authentication")
+        log.debug("authorities: $authorities")
+        log.debug("token: $token")
+        log.debug("token claims: ${token.claims}")
+        log.info("keycloak userId: $userId")
+
+        return userCoroutineRepository.findAllBy(getPageRequest(page, size, sort, direction))
             .map { e -> e.toDto(e.permissions.mapNotNull { permissionCoroutineRepository.findById(it) }) }
+    }
+
 
 }
