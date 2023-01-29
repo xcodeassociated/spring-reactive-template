@@ -1,5 +1,6 @@
 package com.softeno.template.config
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Profile
 import org.springframework.core.convert.converter.Converter
@@ -42,6 +43,23 @@ class SecurityConfig {
 
     }
 
+    class UsernameSubClaimAdapter : Converter<Map<String, Any>, Map<String, Any>> {
+        private val delegate = MappedJwtClaimSetConverter.withDefaults(Collections.emptyMap())
+        override fun convert(claims: Map<String, Any>): Map<String, Any> {
+            val convertedClaims = delegate.convert(claims)
+            val username = convertedClaims?.get("sub") as String
+            convertedClaims["sub"] = username
+            return convertedClaims
+        }
+    }
+
+    fun jwtDecoder(issuer: String, jwkSetUri: String): ReactiveJwtDecoder {
+        val jwtDecoder: NimbusReactiveJwtDecoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build()
+        jwtDecoder.setClaimSetConverter(UsernameSubClaimAdapter())
+        jwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuer))
+        return jwtDecoder
+    }
+
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration()
         configuration.allowedOrigins = listOf("*")
@@ -56,7 +74,10 @@ class SecurityConfig {
     }
 
     @Bean
-    fun securityWebFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
+    fun securityWebFilterChain(http: ServerHttpSecurity,
+                               @Value("\${spring.security.oauth2.resourceserver.jwt.issuer-uri}") issuer: String,
+                               @Value("\${spring.security.oauth2.client.provider.keycloak.jwk-set-uri}") jwkSetUri: String
+    ): SecurityWebFilterChain {
         return http
             .cors().configurationSource(corsConfigurationSource()).and()
             .csrf().disable()
@@ -76,28 +97,11 @@ class SecurityConfig {
                     .pathMatchers("/sample-secured/**").authenticated()
             }
             .oauth2ResourceServer {
-                it.jwt().jwtDecoder(jwtDecoder())
+                it.jwt().jwtDecoder(jwtDecoder(issuer, jwkSetUri))
                 it.jwt().jwtAuthenticationConverter {
                     jwt -> Mono.just(AuthenticationConverter().convert(jwt))
                 }
             }
             .build()
     }
-}
-
-class UsernameSubClaimAdapter : Converter<Map<String, Any>, Map<String, Any>> {
-    private val delegate = MappedJwtClaimSetConverter.withDefaults(Collections.emptyMap())
-    override fun convert(claims: Map<String, Any>): Map<String, Any> {
-        val convertedClaims = delegate.convert(claims)
-        val username = convertedClaims?.get("sub") as String
-        convertedClaims["sub"] = username
-        return convertedClaims
-    }
-}
-@Bean
-fun jwtDecoder(): ReactiveJwtDecoder {
-    val jwtDecoder: NimbusReactiveJwtDecoder = NimbusReactiveJwtDecoder.withJwkSetUri("http://localhost:8090/realms/master/protocol/openid-connect/certs").build()
-    jwtDecoder.setClaimSetConverter(UsernameSubClaimAdapter())
-    jwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer("http://localhost:8090/realms/master"))
-    return jwtDecoder
 }
