@@ -51,6 +51,7 @@ class SecurityConfig {
 
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", configuration)
+        // note: swagger can be restricted by cors
         return source
     }
 
@@ -72,7 +73,8 @@ class SecurityConfig {
                     "/swagger-resources/**",
                     "/v2/api-docs")
                     .permitAll()
-                    .pathMatchers("/reactive/**", "/coroutine/**").hasAuthority("ROLE_ADMIN")
+                    .pathMatchers("/reactive/**", "/coroutine/**" ).hasAuthority("ROLE_ADMIN")
+                    .pathMatchers("/sample-secured/**").authenticated()
             }
             .oauth2ResourceServer {
                 it.jwt().jwtDecoder(jwtDecoder())

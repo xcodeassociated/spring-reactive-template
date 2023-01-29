@@ -28,7 +28,6 @@ class ExternalController(
     suspend fun postHandler(@RequestBody request: SampleResponseDto): SampleResponseDto {
         log.info("[external]: POST request: $request")
         val response: SampleResponseDto = webClient.post()
-            .uri("/sample")
             .body(Mono.just(request), SampleResponseDto::class.java)
             .retrieve()
             .bodyToMono(SampleResponseDto::class.java)
@@ -48,7 +47,7 @@ class ExternalController(
     suspend fun getHandler(@PathVariable id: String): SampleResponseDto {
         log.info("[external]: GET id: $id")
         val response: SampleResponseDto = webClient.get()
-            .uri("/sample/${id}")
+            .uri("/${id}")
             .retrieve()
             .bodyToMono(SampleResponseDto::class.java)
             .timeout(Duration.ofMillis(1_000))
@@ -67,7 +66,7 @@ class ExternalController(
     suspend fun putHandler(@PathVariable id: String, @RequestBody request: SampleResponseDto): SampleResponseDto {
         log.info("[external]: PUT id: $id, request: $request")
         val response: SampleResponseDto = webClient.put()
-            .uri("/sample/${id}")
+            .uri("/${id}")
             .body(Mono.just(request), SampleResponseDto::class.java)
             .retrieve()
             .bodyToMono(SampleResponseDto::class.java)
@@ -87,7 +86,7 @@ class ExternalController(
     fun deleteHandler(@PathVariable id: String): Mono<Void> {
         log.info("[external]: GET id: $id")
         val response: Mono<Void> = webClient.delete()
-            .uri("/sample/${id}")
+            .uri("/${id}")
             .retrieve()
             .bodyToMono(Void::class.java)
             .timeout(Duration.ofMillis(1_000))
@@ -105,7 +104,7 @@ class ExternalController(
     suspend fun getHandlerNoFallback(@PathVariable id: String): SampleResponseDto {
         log.info("[external]: GET id: $id")
         val response: SampleResponseDto = webClient.get()
-            .uri("/sample/${id}")
+            .uri("/${id}")
             .retrieve()
             .bodyToMono(SampleResponseDto::class.java)
             .timeout(Duration.ofMillis(1_000))
