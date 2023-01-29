@@ -66,14 +66,13 @@ class SecurityConfig {
                     "/sample/**",
                     "/external/**",
                     "/rsocket/**",
-                    "/ws/**",
                     "/",
                     "/swagger-ui.html",
                     "/webjars/**",
                     "/swagger-resources/**",
                     "/v2/api-docs")
                     .permitAll()
-                    .pathMatchers("/reactive/**", "/coroutine/**" ).hasAuthority("ROLE_ADMIN")
+                    .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**" ).hasAuthority("ROLE_ADMIN")
                     .pathMatchers("/sample-secured/**").authenticated()
             }
             .oauth2ResourceServer {
