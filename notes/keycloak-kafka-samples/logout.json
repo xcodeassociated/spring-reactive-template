@@ -1,0 +1,14 @@
+{
+  "id": "2c908efd-858a-47e5-b899-e8e68559ab72",
+  "time": 1674955930173,
+  "type": "LOGOUT",
+  "realmId": "49b390fd-9e31-4931-a55f-34ff3e0776bb",
+  "clientId": null,
+  "userId": "8693efc7-736d-45c2-ab93-759ed2dd27c0",
+  "sessionId": "2cce54f3-28d5-4727-ac65-ab8f7c70a8c3",
+  "ipAddress": "172.29.0.1",
+  "error": null,
+  "details": {
+    "redirect_uri": "http://localhost:3000/"
+  }
+}

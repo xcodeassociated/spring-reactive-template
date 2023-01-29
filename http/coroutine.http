@@ -30,7 +30,7 @@ GET http://localhost:8080/coroutine/users?page=0&size=10&sort=id&direction=ASC
 POST http://localhost:8080/coroutine/users
 Content-Type: application/json
 
-{"name": "user test coroutine", "email":  "4445test-c@test.com", "role": []}
+{"name": "user test coroutine", "email":  "test-c@test.com", "role": []}
 
 ###
 PUT http://localhost:8080/coroutine/users/63c6a6c0686f32099dfebd88

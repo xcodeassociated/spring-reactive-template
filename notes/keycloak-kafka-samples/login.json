@@ -1,0 +1,19 @@
+{
+  "id": "d567e184-963e-4836-80d5-fedcb07870e5",
+  "time": 1674955961622,
+  "type": "LOGIN",
+  "realmId": "49b390fd-9e31-4931-a55f-34ff3e0776bb",
+  "clientId": "frontend",
+  "userId": "cd85a973-3f13-4219-827b-0c31044e241f",
+  "sessionId": "c71a9003-5165-4370-b98e-4d295297ecc0",
+  "ipAddress": "172.29.0.1",
+  "error": null,
+  "details": {
+    "auth_method": "openid-connect",
+    "auth_type": "code",
+    "redirect_uri": "http://localhost:3000/login",
+    "consent": "no_consent_required",
+    "code_id": "c71a9003-5165-4370-b98e-4d295297ecc0",
+    "username": "test"
+  }
+}

@@ -1,7 +1,7 @@
 package com.softeno.template.event
 
 import com.softeno.template.kafka.KafkaMessage
-import com.softeno.template.kafka.ReactiveKafkaProducerService
+import com.softeno.template.kafka.ReactiveKafkaSampleProducer
 import com.softeno.template.websocket.Message
 import com.softeno.template.websocket.ReactiveMessageService
 import org.apache.commons.logging.LogFactory
@@ -14,14 +14,14 @@ data class AppEvent(val source: String) : ApplicationEvent(source)
 @Component
 class SampleApplicationEventPublisher(
     private val reactiveMessageService: ReactiveMessageService,
-    private val reactiveKafkaProducerService: ReactiveKafkaProducerService
+    private val reactiveKafkaProducer: ReactiveKafkaSampleProducer
 ) : ApplicationListener<AppEvent> {
     private val log = LogFactory.getLog(javaClass)
 
     override fun onApplicationEvent(event: AppEvent) {
         log.info("[event handler]: Received event: $event")
         reactiveMessageService.broadcast(event.toMessage())
-        reactiveKafkaProducerService.send(event.toKafkaMessage())
+        reactiveKafkaProducer.send(event.toKafkaMessage())
     }
 
 }
