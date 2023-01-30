@@ -91,7 +91,8 @@ class SecurityConfig {
                     "/swagger-ui.html",
                     "/webjars/**",
                     "/swagger-resources/**",
-                    "/v2/api-docs")
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**")
                     .permitAll()
                     .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**" ).hasAuthority("ROLE_ADMIN")
                     .pathMatchers("/sample-secured/**").authenticated()

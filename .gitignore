@@ -43,5 +43,5 @@ logs/
 volumes/
 docker/mongo/volumes
 docker/mongo-rs/volumes
-docker/kafka/volumes
+docker/kafka+keycloak/volumes
 

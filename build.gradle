@@ -80,6 +80,12 @@ dependencies {
 	if (osdetector.classifier == "osx-aarch_64") {
 		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.87.Final:${osdetector.classifier}")
 	}
+
+	// springdoc
+	implementation group: 'org.springdoc', name: 'springdoc-openapi-ui', version: '1.6.14'
+	implementation group: 'org.springdoc', name: 'springdoc-openapi-webflux-ui', version: '1.6.14'
+	implementation group: 'org.springdoc', name: 'springdoc-openapi-data-rest', version: '1.6.14'
+	implementation group: 'org.springdoc', name: 'springdoc-openapi-security', version: '1.6.14'
 }
 
 dependencyManagement {
