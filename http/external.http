@@ -1,22 +1,22 @@
 ### External Endpoint HTTP
 
 ###
-GET http://localhost:8080/external/1
+GET {{host}}/external/{{$random.integer(0, 1000)}}
 
 ###
-POST http://localhost:8080/external
+POST {{host}}/external
 Content-Type: application/json
 
-{"data": "sample data node"}
+{"data": "sample data: {{$uuid}}" }
 
 ###
-PUT http://localhost:8080/external/1
+PUT {{host}}/external/{{$uuid}}
 Content-Type: application/json
 
-{"data": "sample data node"}
+{"data": "sample data change: {{$uuid}}"}
 
 ###
-DELETE http://localhost:8080/external/1
+DELETE {{host}}/external/{{$random.integer(0, 1000)}}
 
 ### NO FALLBACK
-GET http://localhost:8080/external/throw-on-fallback/1
+GET {{host}}/external/throw-on-fallback/{{$random.integer(0, 1000)}}

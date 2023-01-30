@@ -45,3 +45,5 @@ docker/mongo/volumes
 docker/mongo-rs/volumes
 docker/kafka+keycloak/volumes
 
+http-client.env.json
+

@@ -1,0 +1,72 @@
+### Coroutine
+
+###
+GET {{host}}/permissions?page=0&size=10&sort=id&direction=DESC
+Authorization: Bearer {{oauthToken}}
+
+###
+POST {{host}}/permissions
+Content-Type: application/json
+Authorization: Bearer {{oauthToken}}
+
+{"name": "test-coroutine-{{$random.integer(0, 100)}}", "description": "test description coroutine"}
+
+> {%
+client.global.set("permissionId", response.body._id)
+ %}
+
+###
+GET {{host}}/permissions/{{permissionId}}
+Authorization: Bearer {{oauthToken}}
+
+###
+PUT {{host}}/permissions/{{permissionId}}
+Content-Type: application/json
+Authorization: Bearer {{oauthToken}}
+
+{"name": "test-coroutine-changed", "description": "test description coroutine changed!"}
+
+###
+DELETE {{host}}/permissions/{{permissionId}}
+Authorization: Bearer {{oauthToken}}
+
+> {%
+client.global.set("permissionId", null)
+ %}
+
+### User
+
+###
+GET {{host}}/users?page=0&size=10&sort=id&direction=ASC
+Authorization: Bearer {{oauthToken}}
+
+###
+POST {{host}}/users
+Content-Type: application/json
+Authorization: Bearer {{oauthToken}}
+
+{"name": "user: {{$uuid}}", "email":  "{{$random.email}}", "role": ["{{permissionId}}"]}
+
+> {%
+    client.global.set("userId", response.body._id)
+%}
+
+###
+PUT {{host}}/users/{{userId}}
+Content-Type: application/json
+Authorization: Bearer {{oauthToken}}
+
+{"name": "user changed: {{$uuid}}", "email":  "{{$random.email}}", "role": ["{{permissionId}}"]}
+
+###
+GET {{host}}/users/{{userId}}
+Authorization: Bearer {{oauthToken}}
+
+###
+DELETE {{host}}/users/{{userId}}
+Authorization: Bearer {{oauthToken}}
+
+> {%
+    client.global.set("userId", null)
+%}
+
