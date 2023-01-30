@@ -9,7 +9,7 @@ POST {{host}}/permissions
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
-{"name": "test-coroutine-{{$random.integer(0, 100)}}", "description": "test description coroutine"}
+{"name": "test-{{$random.integer(0, 100)}}", "description": "test description coroutine"}
 
 > {%
 client.global.set("permissionId", response.body._id)
