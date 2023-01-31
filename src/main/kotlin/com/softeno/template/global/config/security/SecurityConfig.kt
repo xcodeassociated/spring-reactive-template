@@ -88,6 +88,8 @@ class SecurityConfig {
                     "/sample/**",
                     "/external/**",
                     "/rsocket/**",
+                    // monitoring
+                    "/actuator/**",
                     // springdocs
                     "/swagger-ui.html",
                     "/webjars/**",
