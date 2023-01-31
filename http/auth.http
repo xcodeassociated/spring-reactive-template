@@ -1,0 +1,10 @@
+###
+POST {{auth_host}}
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{auth_client_id}}&username={{auth_username}}&password={{auth_password}}&grant_type=password
+
+> {%
+    client.global.set("oauthToken", response.body.access_token)
+%}
+
