@@ -1,0 +1,21 @@
+{
+  "id": "1aa63488-6cec-417a-9c11-6aa654b23458",
+  "createdTimestamp": 1675274855914,
+  "username": "test-api-1",
+  "enabled": true,
+  "totp": false,
+  "emailVerified": false,
+  "firstName": "api-2",
+  "lastName": "test-2",
+  "email": "test@api.com",
+  "disableableCredentialTypes": [],
+  "requiredActions": [],
+  "notBefore": 0,
+  "access": {
+    "manageGroupMembership": true,
+    "view": true,
+    "mapRoles": true,
+    "impersonate": true,
+    "manage": true
+  }
+}

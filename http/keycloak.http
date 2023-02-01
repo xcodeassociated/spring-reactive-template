@@ -1,0 +1,61 @@
+### GET ALL USERS
+GET http://localhost:8090/admin/realms/master/users/
+Authorization: Bearer {{oauthTokenBe}}
+
+### GET USER
+GET http://localhost:8090/admin/realms/master/users/ID
+Authorization: Bearer {{oauthTokenBe}}
+
+### SEARCH USER
+GET http://localhost:8090/admin/realms/master/users?username=test-api-1&exact=true
+Authorization: Bearer {{oauthTokenBe}}
+
+### CREATE USER
+POST http://localhost:8090/admin/realms/master/users/
+Authorization: Bearer {{oauthTokenBe}}
+Content-Type: application/json
+
+{
+  "username": "test-api-1",
+  "enabled": true,
+  "firstName": "api",
+  "lastName": "test",
+  "email": "test@api.com",
+  "requiredActions": ["UPDATE_PASSWORD"],
+  "credentials": [{
+    "type": "password",
+    "value": "test"
+  }]
+}
+
+
+### UPDATE USER
+PUT http://localhost:8090/admin/realms/master/users/ID
+Authorization: Bearer {{oauthTokenBe}}
+Content-Type: application/json
+
+{
+  "id": "1aa63488-6cec-417a-9c11-6aa654b23458",
+  "createdTimestamp": 1675274855914,
+  "username": "test-api-1",
+  "enabled": true,
+  "totp": false,
+  "emailVerified": false,
+  "firstName": "api-2",
+  "lastName": "test-2",
+  "email": "test@api.com",
+  "disableableCredentialTypes": [],
+  "requiredActions": [],
+  "notBefore": 0,
+  "access": {
+    "manageGroupMembership": true,
+    "view": true,
+    "mapRoles": true,
+    "impersonate": true,
+    "manage": true
+  }
+}
+
+### DELETE USER
+DELETE http://localhost:8090/admin/realms/master/users/ID
+Authorization: Bearer {{oauthTokenBe}}

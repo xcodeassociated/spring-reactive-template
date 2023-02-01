@@ -1,0 +1,12 @@
+{
+  "username": "test-api-1",
+  "enabled": true,
+  "firstName": "api",
+  "lastName": "test",
+  "email": "test@api.com",
+  "requiredActions": ["UPDATE_PASSWORD"],
+  "credentials": [{
+    "type": "password",
+    "value": "test"
+  }]
+}
