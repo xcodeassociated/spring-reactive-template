@@ -1,4 +1,4 @@
-### Coroutine
+### Permissions
 
 ###
 GET {{host}}/permissions?page=0&size=10&sort=id&direction=DESC

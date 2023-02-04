@@ -7,9 +7,7 @@ import com.softeno.template.users.db.User
 import com.softeno.template.users.event.AppEvent
 import com.softeno.template.users.http.dto.*
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
-import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.FindAndModifyOptions
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
@@ -41,9 +39,7 @@ class ReactivePermissionController(
         @RequestParam(required = false, defaultValue = "id") sort: String,
         @RequestParam(required = false, defaultValue = "ASC") direction: String
     ): Flux<PermissionDto> {
-        val pageRequest = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
-            .let { PageRequest.of(page, size, it) }
-        return permissionsReactiveRepository.findAllBy(pageRequest)
+        return permissionsReactiveRepository.findAllBy(getPageRequest(page, size, sort, direction))
             .map { it.toDto() }
     }
 
@@ -128,8 +124,9 @@ class ReactiveUserController(
     @PutMapping("/users/{id}")
     fun updateUser(@PathVariable id: String, @RequestBody input: UserInput): Mono<UserDto> {
         val permissions: Mono<List<Permission>> = Flux.fromIterable(input.permissionIds)
-            .flatMap { productId: String -> permissionsReactiveRepository.findById(productId)
-                .switchIfEmpty(Mono.error(RuntimeException("error: permission not found")))
+            .flatMap {
+                    productId: String -> permissionsReactiveRepository.findById(productId)
+                        .switchIfEmpty(Mono.error(RuntimeException("error: permission not found")))
             }
             .collectList()
 
@@ -169,9 +166,7 @@ class ReactiveUserController(
         @RequestParam(required = false, defaultValue = "id") sort: String,
         @RequestParam(required = false, defaultValue = "ASC") direction: String
     ): Flux<UserDto> {
-        val pageRequest = Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))
-            .let { PageRequest.of(page, size, it) }
-        return userReactiveRepository.findAllBy(pageRequest)
+        return userReactiveRepository.findAllBy(getPageRequest(page, size, sort, direction))
             .map { user ->
                 user.toMono().zipWith(user.permissions.toMono())
                     .map { tuple ->
