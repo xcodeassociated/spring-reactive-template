@@ -1,0 +1,20 @@
+POST {{host}}/minio/upload HTTP/1.1
+Content-Type: multipart/form-data; boundary=boundary
+Authorization: Bearer {{oauthToken}}
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="picture.jpg"
+
+< ./data/picture.jpg
+
+###
+
+GET {{host}}/minio/picture.jpg
+Content-Type: application/octet-stream
+Authorization: Bearer {{oauthToken}}
+
+
+###
+
+DELETE {{host}}/minio/picture.jpg
+Authorization: Bearer {{oauthToken}}

@@ -81,6 +81,9 @@ dependencies {
 		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.87.Final:${osdetector.classifier}")
 	}
 
+	// s3
+	implementation 'io.minio:minio:8.5.1'
+
 	// monitoring
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'io.micrometer:micrometer-registry-prometheus'

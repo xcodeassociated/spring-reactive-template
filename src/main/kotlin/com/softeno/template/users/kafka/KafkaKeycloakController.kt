@@ -8,10 +8,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.CommandLineRunner
 import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
-import org.springframework.stereotype.Service
+import org.springframework.stereotype.Controller
 import reactor.core.publisher.Flux
 
-@Service
+@Controller
 class ReactiveKafkaKeycloakController(
     @Qualifier(value = "kafkaKeycloakConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
     private val objectMapper: ObjectMapper

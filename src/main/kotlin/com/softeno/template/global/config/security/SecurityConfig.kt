@@ -20,7 +20,7 @@ import reactor.core.publisher.Mono
 import java.util.*
 
 
-@Profile(value = ["!test", "!integration"])
+@Profile(value = ["!integration"])
 @EnableWebFluxSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 class SecurityConfig {
@@ -98,7 +98,7 @@ class SecurityConfig {
                     "/v3/api-docs/**")
                     .permitAll()
                     .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**" ).hasAuthority("ROLE_ADMIN")
-                    .pathMatchers("/sample-secured/**").authenticated()
+                    .pathMatchers("/sample-secured/**", "/minio/**").authenticated()
             }
             .oauth2ResourceServer {
                 it.jwt().jwtDecoder(jwtDecoder(issuer, jwkSetUri))

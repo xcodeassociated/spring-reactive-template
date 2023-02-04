@@ -9,7 +9,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import spock.lang.Specification
 
 @SpringBootTest(classes = SoftenoReactiveMongoApp,
-        properties = "application.environment=integration",
+        properties = "spring.profiles.active=integration",
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnableConfigurationProperties
 @ConfigurationPropertiesScan("com.softeno")

@@ -9,7 +9,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.web.server.SecurityWebFilterChain
 
 @EnableWebFluxSecurity
-@Profile(value = ["test", "integration"])
+@Profile(value = ["integration"])
 class SecurityConfig {
 
     @Bean

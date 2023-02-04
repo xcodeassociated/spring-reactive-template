@@ -4,7 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.security.oauth2.client.AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager
@@ -19,7 +18,6 @@ import org.springframework.web.reactive.function.client.WebClient
 @ConstructorBinding
 data class ExternalClientConfig(val url: String, val name: String)
 
-@Profile(value = ["!test", "!integration"])
 @Configuration
 class WebClientConfig {
 
