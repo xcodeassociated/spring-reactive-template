@@ -4,6 +4,7 @@ import com.softeno.template.sample.http.external.coroutine.ExternalServiceExcept
 import org.apache.commons.logging.LogFactory
 import org.springframework.boot.autoconfigure.web.WebProperties
 import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler
+import org.springframework.boot.web.error.ErrorAttributeOptions
 import org.springframework.boot.web.reactive.error.ErrorAttributes
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
@@ -50,7 +51,12 @@ class GlobalErrorWebExceptionHandler(
     }
 
     private fun getCustomErrorAttributes(request: ServerRequest, includeStackTrace: Boolean): Map<String, Any> {
-        val errorAttributes: MutableMap<String, Any> = this.getErrorAttributes(request, includeStackTrace)
+        val options: ErrorAttributeOptions = if (includeStackTrace) {
+            ErrorAttributeOptions.of(ErrorAttributeOptions.Include.STACK_TRACE)
+        } else {
+            ErrorAttributeOptions.defaults()
+        }
+        val errorAttributes: MutableMap<String, Any> = this.getErrorAttributes(request, options)
         val error = getError(request)
         log.error("[exception handler]: Handling exception: $error")
 

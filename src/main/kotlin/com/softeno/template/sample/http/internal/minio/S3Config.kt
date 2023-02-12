@@ -3,7 +3,6 @@ package com.softeno.template.sample.http.internal.minio
 import io.minio.MinioClient
 import okhttp3.OkHttpClient
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -11,7 +10,6 @@ import java.util.concurrent.TimeUnit
 
 
 @ConfigurationProperties(prefix = "io.min")
-@ConstructorBinding
 @Profile(value = ["!integration"])
 data class ExternalMinioConfig
     (val name: String, val secret: String, val url: String, val bucket: String, val folder: String)

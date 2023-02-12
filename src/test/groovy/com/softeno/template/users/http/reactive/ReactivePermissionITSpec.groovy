@@ -9,7 +9,6 @@ class ReactivePermissionITSpec extends BaseAppSpec {
     @Autowired
     WebTestClient webClient
 
-
     def "HTTP 200 GET /permissions and no data"() {
         expect:
         webClient.get().uri("/reactive/permissions")
