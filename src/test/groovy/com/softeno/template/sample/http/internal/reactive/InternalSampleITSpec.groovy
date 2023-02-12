@@ -1,27 +1,18 @@
 package com.softeno.template.sample.http.internal.reactive
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.softeno.template.SoftenoReactiveMongoApp
+import com.softeno.template.BaseAppSpec
 import com.softeno.template.sample.http.dto.SampleResponseDto
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan
-import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.core.publisher.Mono
-import spock.lang.Specification
 
-@SpringBootTest(classes = SoftenoReactiveMongoApp,
-        properties = "spring.profiles.active=integration",
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@EnableConfigurationProperties
-@ConfigurationPropertiesScan("com.softeno")
-class SampleEndpointsSpec extends Specification {
+class InternalSampleITSpec extends BaseAppSpec {
 
     @Autowired
     WebTestClient webClient
 
-    def "GET /sample/ -> 200"() {
+    def "HTTP 200 GET /sample"() {
         given:
         def data = "hello"
 
@@ -34,7 +25,7 @@ class SampleEndpointsSpec extends Specification {
                 .expectBody().jsonPath("data").isEqualTo(data)
     }
 
-    def "POST /sample -> 200"() {
+    def "HTTP 200 POST /sample"() {
         given:
         def mapper = new ObjectMapper()
         def expected = new SampleResponseDto("test")

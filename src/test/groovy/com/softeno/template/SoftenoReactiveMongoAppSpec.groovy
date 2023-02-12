@@ -1,18 +1,9 @@
 package com.softeno.template
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan
-import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
-import spock.lang.Specification
 
-@SpringBootTest(classes = SoftenoReactiveMongoApp,
-        properties = "spring.profiles.active=integration",
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@EnableConfigurationProperties
-@ConfigurationPropertiesScan("com.softeno")
-class SoftenoReactiveMongoAppSpec extends Specification {
+class SoftenoReactiveMongoAppSpec extends BaseAppSpec {
 
     @Autowired
     ApplicationContext context
@@ -20,6 +11,11 @@ class SoftenoReactiveMongoAppSpec extends Specification {
     def "contextLoads"() {
         expect:
         context.id == "SoftenoReactiveMongoApp"
+    }
+
+    def "container is running"() {
+        expect:
+        mongoDBContainer.isRunning()
     }
 
 }
