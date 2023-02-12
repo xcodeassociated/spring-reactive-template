@@ -94,7 +94,6 @@ class CoroutineUserController(
 ) {
     private val log = LogFactory.getLog(javaClass)
 
-//    @PreAuthorize(value = "hasRole('admin')")
     @PostMapping("/users")
     suspend fun createUser(@RequestBody(required = true) input: UserInput, @AuthenticationPrincipal oauth2User: Mono<OAuth2User>): UserDto {
         val permissions: List<Permission> = input.permissionIds.asFlow()
