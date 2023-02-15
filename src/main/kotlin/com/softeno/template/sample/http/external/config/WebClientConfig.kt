@@ -1,7 +1,6 @@
 package com.softeno.template.sample.http.external.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
@@ -15,7 +14,6 @@ import org.springframework.security.oauth2.client.web.reactive.function.client.S
 import org.springframework.web.reactive.function.client.WebClient
 
 @ConfigurationProperties(prefix = "com.softeno.external")
-//@ConstructorBinding
 data class ExternalClientConfig(val url: String, val name: String)
 
 @Configuration
