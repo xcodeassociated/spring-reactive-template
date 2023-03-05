@@ -2,6 +2,7 @@ package com.softeno.template.sample.http.internal.reactive
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.softeno.template.BaseAppSpec
+import com.softeno.template.fixture.SampleResponseDtoFixture
 import com.softeno.template.sample.http.dto.SampleResponseDto
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -28,7 +29,7 @@ class InternalSampleITSpec extends BaseAppSpec {
     def "HTTP 200 POST /sample"() {
         given:
         def mapper = new ObjectMapper()
-        def expected = new SampleResponseDto("test")
+        def expected = SampleResponseDtoFixture.someDto(UUID.randomUUID().toString())
         def expectedString = mapper.writeValueAsString(expected)
 
         expect:

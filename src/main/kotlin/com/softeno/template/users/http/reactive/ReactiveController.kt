@@ -113,7 +113,7 @@ class ReactiveUserController(
             .map { tuple ->
                 User(id = null, name = tuple.t1.name, email = tuple.t1.email, permissions = tuple.t2
                     .map { permission -> permission.id!! }
-                    .toSet()
+                    .toSet(), createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null
                 )
             }.flatMap { e -> userReactiveRepository.save(e) }
             .doOnSuccess { applicationEventPublisher.publishEvent(AppEvent("USER_CREATED_REACTIVE: ${it.id}")) }
@@ -133,8 +133,10 @@ class ReactiveUserController(
         return userReactiveRepository.findById(id)
             .switchIfEmpty(Mono.error(RuntimeException("error: user not found")))
             .zipWith(permissions)
-            .map {
-                    tuple -> User(id = tuple.t1.id, name = input.name, email = input.email, permissions = tuple.t2.map { permission -> permission.id!! }.toSet())
+            .map { tuple -> User(id = tuple.t1.id, name = input.name, email = input.email,
+                permissions = tuple.t2.map { permission -> permission.id!! }.toSet(),
+                createdDate = tuple.t1.createdDate, createdByUser = tuple.t1.createdByUser,
+                lastModifiedDate = tuple.t1.lastModifiedDate, modifiedByUser = tuple.t1.modifiedByUser)
             }.map { e -> userReactiveRepository.save(e) }
             .flatMap { e -> e }
             .zipWith(permissions)

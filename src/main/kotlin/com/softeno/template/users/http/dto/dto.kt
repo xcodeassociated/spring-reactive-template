@@ -17,6 +17,7 @@ data class PermissionDto(
     val id: String?,
     val name: String,
     val description: String
+    // todo: map auditor fields
 )
 data class UserInput(
     val name: String,
@@ -34,13 +35,16 @@ data class UserDto(
     @JsonProperty("role")
     @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
     val permissions: List<PermissionDto>
+    // todo: map auditor fields
 )
 
-fun PermissionInput.toDocument() = Permission(id = null, name = this.name, description = this.description)
+fun PermissionInput.toDocument() = Permission(id = null, name = this.name, description = this.description,
+    createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null)
 
 fun Permission.toDto(): PermissionDto = PermissionDto(id = this.id, name = this.name, description = this.description)
 
-fun User.toDto(permissions: Collection<Permission>): UserDto = UserDto(id = this.id!!, name = this.name, email = this.email, permissions = permissions.map { it.toDto() })
+fun User.toDto(permissions: Collection<Permission>): UserDto = UserDto(id = this.id!!, name = this.name,
+    email = this.email, permissions = permissions.map { it.toDto() })
 
 fun getPageRequest(page: Int, size: Int, sort: String, direction: String) =
     Sort.by(Sort.Order(if (direction == "ASC") Sort.Direction.ASC else Sort.Direction.DESC, sort))

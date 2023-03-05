@@ -4,10 +4,6 @@ import spock.lang.Specification
 
 class SampleSpockSpec extends Specification {
 
-    def setup() {
-
-    }
-
     def "sample test equals"() {
         given:
         def a = 1

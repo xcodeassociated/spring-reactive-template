@@ -102,7 +102,9 @@ class CoroutineUserController(
             }
             .toList()
 
-        return userCoroutineRepository.save(User(id = null, name = input.name, email = input.email, permissions = permissions.map { permission -> permission.id!! }.toSet()))
+        return userCoroutineRepository.save(User(id = null, name = input.name, email = input.email,
+            permissions = permissions.map { permission -> permission.id!! }.toSet(),
+            createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null))
             .also { applicationEventPublisher.publishEvent(AppEvent("USER_CREATED_COROUTINE: ${it.id}")) }
             .toDto(permissions)
     }
