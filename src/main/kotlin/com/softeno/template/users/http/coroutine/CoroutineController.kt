@@ -82,6 +82,7 @@ class CoroutinePermissionController(
 @Repository
 interface UserCoroutineRepository : CoroutineCrudRepository<User, String> {
     fun findAllBy(pageable: Pageable): Flow<User>
+    suspend fun findByIdAndVersion(id: String, version: Long): User?
 }
 
 @RestController
@@ -104,17 +105,19 @@ class CoroutineUserController(
 
         return userCoroutineRepository.save(User(id = null, name = input.name, email = input.email,
             permissions = permissions.map { permission -> permission.id!! }.toSet(),
-            createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null))
+            createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null, version = null))
             .also { applicationEventPublisher.publishEvent(AppEvent("USER_CREATED_COROUTINE: ${it.id}")) }
             .toDto(permissions)
     }
 
     @PutMapping("/users/{id}")
     suspend fun updateUser(@PathVariable id: String, @RequestBody(required = true) input: UserInput): UserDto {
+        val version = input.version ?: throw RuntimeException("error: version is required")
+
         val permissions: List<Permission> = input.permissionIds
             .map { permissionCoroutineRepository.findById(it) ?: throw RuntimeException("error: permission not found") }
 
-        val user = userCoroutineRepository.findById(id) ?: throw RuntimeException("error: user not found")
+        val user = userCoroutineRepository.findByIdAndVersion(id, version) ?: throw RuntimeException("error: user not found")
         return userCoroutineRepository.save(
             user.copy(name = input.name, email = input.email, permissions = permissions.map { it.id!! }.toSet())
         ).toDto(permissions)

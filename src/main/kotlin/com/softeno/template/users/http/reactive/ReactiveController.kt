@@ -76,7 +76,7 @@ interface PermissionsReactiveRepository : ReactiveMongoRepository<Permission, St
 @Component
 class PermissionsReactiveMongoTemplate(val mongoTemplate: ReactiveMongoTemplate) {
     fun findAndModify(id: String, input: PermissionInput): Mono<Permission> {
-        val query = Query(Criteria.where("id").`is`(id))
+        val query = Query(Criteria.where("id").`is`(id).and("version").`is`(input.version))
         val update = Update().set("name", input.name).set("description", input.description)
         // note: Update() has more `set` operations based on the document element type to be modified
         val options = FindAndModifyOptions.options().returnNew(true)
@@ -89,6 +89,7 @@ class PermissionsReactiveMongoTemplate(val mongoTemplate: ReactiveMongoTemplate)
 @Repository
 interface UserReactiveRepository : ReactiveMongoRepository<User, String>, ReactiveQuerydslPredicateExecutor<User> {
     fun findAllBy(pageable: Pageable): Flux<User>
+    fun findByIdAndVersion(id: String, version: Long): Mono<User>
 }
 
 @RestController
@@ -113,7 +114,8 @@ class ReactiveUserController(
             .map { tuple ->
                 User(id = null, name = tuple.t1.name, email = tuple.t1.email, permissions = tuple.t2
                     .map { permission -> permission.id!! }
-                    .toSet(), createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null
+                    .toSet(), createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null,
+                    version = null
                 )
             }.flatMap { e -> userReactiveRepository.save(e) }
             .doOnSuccess { applicationEventPublisher.publishEvent(AppEvent("USER_CREATED_REACTIVE: ${it.id}")) }
@@ -130,13 +132,16 @@ class ReactiveUserController(
             }
             .collectList()
 
-        return userReactiveRepository.findById(id)
+        val version = input.version ?: throw RuntimeException("error: version is null")
+
+        return userReactiveRepository.findByIdAndVersion(id, version)
             .switchIfEmpty(Mono.error(RuntimeException("error: user not found")))
             .zipWith(permissions)
             .map { tuple -> User(id = tuple.t1.id, name = input.name, email = input.email,
                 permissions = tuple.t2.map { permission -> permission.id!! }.toSet(),
                 createdDate = tuple.t1.createdDate, createdByUser = tuple.t1.createdByUser,
-                lastModifiedDate = tuple.t1.lastModifiedDate, modifiedByUser = tuple.t1.modifiedByUser)
+                lastModifiedDate = tuple.t1.lastModifiedDate, modifiedByUser = tuple.t1.modifiedByUser,
+                version = tuple.t1.version)
             }.map { e -> userReactiveRepository.save(e) }
             .flatMap { e -> e }
             .zipWith(permissions)

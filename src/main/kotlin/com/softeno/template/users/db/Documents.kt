@@ -22,6 +22,9 @@ data class Permission(
     @LastModifiedBy
      var modifiedByUser: String?,
 
+    @Version
+    var version: Long?,
+
     @Indexed(unique = true)
     val name: String,
 
@@ -44,6 +47,9 @@ data class User(
 
     @LastModifiedDate
     var lastModifiedDate: LocalDateTime?,
+
+    @Version
+    var version: Long?,
 
     val name: String,
 

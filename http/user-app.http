@@ -24,7 +24,7 @@ PUT {{host}}/permissions/{{permissionId}}
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
-{"name": "test-coroutine-changed", "description": "test description coroutine changed!"}
+{"name": "test-coroutine-changed: {{$uuid}}", "description": "test description coroutine changed!", "version":  0}
 
 ###
 DELETE {{host}}/permissions/{{permissionId}}
@@ -56,7 +56,7 @@ PUT {{host}}/users/{{userId}}
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
-{"name": "user changed: {{$uuid}}", "email":  "{{$random.email}}", "role": ["{{permissionId}}"]}
+{"name": "user changed: {{$uuid}}", "email":  "{{$random.email}}", "role": ["{{permissionId}}"], "version": 0}
 
 ###
 GET {{host}}/users/{{userId}}
