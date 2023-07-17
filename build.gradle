@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-	id 'org.springframework.boot' version '3.0.2'
+	id 'org.springframework.boot' version '3.1.1'
 	id 'io.spring.dependency-management' version '1.1.0'
 	id 'org.jetbrains.kotlin.jvm' version '1.8.0'
 	id 'org.jetbrains.kotlin.plugin.spring' version '1.8.0'
@@ -17,8 +17,8 @@ version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '17'
 
 ext {
-	set('springCloudVersion', "2022.0.1")
-	set('testcontainersVersion', "1.17.6")
+	set('springCloudVersion', "2022.0.3")
+	set('testcontainersVersion', "1.18.3")
 }
 
 configurations {
@@ -85,18 +85,18 @@ dependencies {
 	}
 
 	// s3
-	implementation 'io.minio:minio:8.5.1'
+	implementation 'io.minio:minio:8.5.4'
 
 	// monitoring
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
 	// elk
-	implementation 'net.logstash.logback:logstash-logback-encoder:7.2'
+	implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 
 	// springdoc
-	implementation 'org.springdoc:springdoc-openapi-starter-common:2.0.2'
-	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.0.2'
+	implementation 'org.springdoc:springdoc-openapi-starter-common:2.1.0'
+	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.1.0'
 }
 
 dependencyManagement {
