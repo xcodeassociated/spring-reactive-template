@@ -1,6 +1,5 @@
 package com.softeno.template.users.http.reactive
 
-import com.softeno.template.*
 import com.softeno.template.users.db.Permission
 import com.softeno.template.users.db.QPermission
 import com.softeno.template.users.db.User
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Component
 import org.springframework.stereotype.Repository
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.reactive.function.server.*
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -184,5 +182,8 @@ class ReactiveUserController(
             .flatMap { e -> e }
             .map { e -> e.t2.toDto(e.t1) }
     }
+
+    @GetMapping("/users/size")
+    fun getUsersSize(): Mono<Long> = userReactiveRepository.count()
 
 }
