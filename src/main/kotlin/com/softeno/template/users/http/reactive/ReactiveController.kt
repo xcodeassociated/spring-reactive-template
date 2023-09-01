@@ -183,7 +183,7 @@ class ReactiveUserController(
             .map { e -> e.t2.toDto(e.t1) }
     }
 
-    @GetMapping("/users/size")
+    @GetMapping("/usersCount")
     fun getUsersSize(): Mono<Long> = userReactiveRepository.count()
 
 }

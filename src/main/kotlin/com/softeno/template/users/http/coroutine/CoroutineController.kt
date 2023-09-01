@@ -165,7 +165,7 @@ class CoroutineUserController(
             .map { e -> e.toDto(e.permissions.mapNotNull { permissionCoroutineRepository.findById(it) }) }
     }
 
-    @GetMapping("/users/size")
+    @GetMapping("/usersCount")
     suspend fun getUserSize(): Long = userCoroutineRepository.count()
 
 }

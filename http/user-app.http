@@ -74,3 +74,6 @@ Authorization: Bearer {{oauthToken}}
     client.global.set("userId", null)
 %}
 
+###
+GET {{host}}/usersCount
+Authorization: Bearer {{oauthToken}}
