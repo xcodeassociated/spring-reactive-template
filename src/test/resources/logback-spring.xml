@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <property name="projectName" value="template-service"/>
-    <property name="defaultPattern" value="%d{ISO8601} [${projectName}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
+    <property name="defaultPattern"
+              value="%d{ISO8601} [${projectName}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
 
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
         <layout class="ch.qos.logback.classic.PatternLayout">
@@ -12,6 +13,6 @@
     </appender>
 
     <logger name="com.softeno" level="trace" additivity="false">
-        <appender-ref ref="Console" />
+        <appender-ref ref="Console"/>
     </logger>
 </configuration>

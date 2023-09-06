@@ -63,6 +63,9 @@ dependencies {
 	testImplementation 'io.mockk:mockk:1.13.7'
 	testImplementation 'com.ninja-squad:springmockk:4.0.2'
 
+	// wiremock
+	testImplementation 'com.github.tomakehurst:wiremock:3.0.1'
+
 	// spock
 	testImplementation group: 'org.codehaus.groovy', name: 'groovy-all', version: '3.0.14', ext: 'pom'
 	testImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-4.0'

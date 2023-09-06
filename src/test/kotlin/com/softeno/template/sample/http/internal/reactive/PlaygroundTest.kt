@@ -80,7 +80,7 @@ class PlaygroundMockTest {
         coEvery { coroutinePlayground.sampleFunction(any()) }.answers { mockedValue }
 
         // when
-        val result = coroutinePlayground.sampleFunction(a+b)
+        val result = coroutinePlayground.sampleFunction(a + b)
 
         // then
         assertEquals(result, mockedValue)

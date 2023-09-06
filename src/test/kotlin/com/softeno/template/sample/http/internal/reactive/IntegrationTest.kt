@@ -1,14 +1,22 @@
 package com.softeno.template.sample.http.internal.reactive
 
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import com.ninjasquad.springmockk.MockkBean
 import com.softeno.template.SoftenoReactiveMongoApp
 import com.softeno.template.fixture.PermissionFixture
+import com.softeno.template.sample.http.dto.SampleResponseDto
 import com.softeno.template.users.http.reactive.PermissionsReactiveRepository
 import com.softeno.template.users.http.reactive.UserReactiveRepository
 import io.mockk.every
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.reactive.awaitFirstOrNull
+import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -25,15 +33,18 @@ import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.web.reactive.function.client.WebClient
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.utility.DockerImageName
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 
-@SpringBootTest(classes = [SoftenoReactiveMongoApp::class],
+@SpringBootTest(
+    classes = [SoftenoReactiveMongoApp::class],
     properties = ["spring.profiles.active=integration"],
-    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
+)
 @ContextConfiguration(initializers = [BaseIntegrationTest.Companion.Initialaizer::class])
 @EnableConfigurationProperties
 @ConfigurationPropertiesScan("com.softeno")
@@ -43,7 +54,7 @@ abstract class BaseIntegrationTest {
 
     companion object {
 
-        const val databaseName = "example1"
+        private const val databaseName = "example1"
 
         @JvmField
         val dbContainer: MongoDBContainer = MongoDBContainer(DockerImageName.parse("mongo:6.0.4"))
@@ -60,6 +71,9 @@ abstract class BaseIntegrationTest {
 
         }
     }
+
+    @Autowired
+    lateinit var webTestClient: WebTestClient
 
     @Autowired
     lateinit var userReactiveRepository: UserReactiveRepository
@@ -83,7 +97,7 @@ abstract class BaseIntegrationTest {
 
 class ContextLoadsTest : BaseIntegrationTest() {
 
-     val dbContainer: MongoDBContainer = BaseIntegrationTest.dbContainer
+    val dbContainer: MongoDBContainer = BaseIntegrationTest.dbContainer
 
     @Test
     fun contextLoads() {
@@ -93,18 +107,14 @@ class ContextLoadsTest : BaseIntegrationTest() {
 
 class ReactivePermissionTest : BaseIntegrationTest() {
 
-    @Autowired
-    private lateinit var webClient: WebTestClient
-
     @Test
     fun shouldReturnEmptyPermissionResponse() {
-        webClient.get().uri("/reactive/permissions")
+        webTestClient.get().uri("/reactive/permissions")
             .exchange()
             .expectStatus().isOk()
             .expectBody().json("[]")
     }
 }
-
 
 class ReactivePermissionMockedTest : BaseIntegrationTest(), PermissionFixture {
 
@@ -112,25 +122,93 @@ class ReactivePermissionMockedTest : BaseIntegrationTest(), PermissionFixture {
     @Order(value = Ordered.HIGHEST_PRECEDENCE)
     lateinit var permissionsReactiveRepositoryMock: PermissionsReactiveRepository
 
-    @Autowired
-    private lateinit var webClient: WebTestClient
-
     @Test
     fun `should return mocked permissions`() {
         // given
         val aPermission = aPermission()
+
         every { permissionsReactiveRepositoryMock.findAllBy(any()) }.answers {
             Flux.just(aPermission)
         }
         every { permissionsReactiveRepositoryMock.deleteAll() }.answers { Mono.empty() }
 
         // expect
-        webClient.get().uri("/reactive/permissions")
+        webTestClient.get().uri("/reactive/permissions")
             .exchange()
             .expectStatus().isOk()
-            .expectBody().jsonPath("name", aPermission.name)
+            .expectBody()
+            .jsonPath("[0].name").isEqualTo(aPermission.name)
+            .jsonPath("[0].description").isEqualTo(aPermission.description)
 
     }
 
+}
 
+@OptIn(ExperimentalCoroutinesApi::class)
+class ExternalControllerTest : BaseIntegrationTest(), ExternalApiAbility {
+
+    @Autowired
+    private lateinit var webclient: WebClient
+
+    private val wiremock: WireMockServer = WireMockServer(options().port(4500))
+
+    @BeforeEach
+    fun `setup wiremock`() {
+        wiremock.start()
+    }
+
+    @AfterEach
+    fun `stop wiremock`() {
+        wiremock.stop()
+    }
+
+    @Test
+    fun `mock external service with wiremock`() = runTest {
+        // given
+        mockGetId(wiremock)
+
+        val expected = SampleResponseDto(data = "1")
+
+        // expect
+        val response = webclient.get().uri("http://localhost:4500/sample/100")
+            .retrieve()
+            .bodyToMono(SampleResponseDto::class.java)
+            .awaitSingle()
+
+        assertEquals(expected, response)
+    }
+
+    @Test
+    fun `test external controller`() {
+        // given
+        mockGetId(wiremock)
+
+        // expect
+        webTestClient.get().uri("/external/1")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("data").isEqualTo("1")
+    }
+}
+
+interface ExternalApiAbility {
+
+    fun mockGetId(wiremock: WireMockServer) {
+        wiremock.stubFor(
+            get(urlMatching("/sample/.*"))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                            """
+                    {
+                        "data": "1"
+                    }
+                """.trimIndent()
+                        )
+                )
+        )
+    }
 }
