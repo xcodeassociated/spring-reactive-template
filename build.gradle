@@ -54,13 +54,18 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	// testcontainers
-	testImplementation 'org.testcontainers:spock'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:mongodb'
+	testImplementation 'org.testcontainers:junit-jupiter'
+
+	// junit kotlin
+	testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test'
 
 	// spock
 	testImplementation group: 'org.codehaus.groovy', name: 'groovy-all', version: '3.0.14', ext: 'pom'
 	testImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-4.0'
 	testImplementation group: 'org.spockframework', name: 'spock-spring', version: '2.4-M1-groovy-4.0'
+	testImplementation 'org.testcontainers:spock'
 
 	// guerydsl
 	implementation ('com.querydsl:querydsl-mongodb:5.0.0') {
