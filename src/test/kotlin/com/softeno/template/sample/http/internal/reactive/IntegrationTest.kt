@@ -160,6 +160,7 @@ class ExternalControllerTest : BaseIntegrationTest(), ExternalApiAbility {
     @AfterEach
     fun `stop wiremock`() {
         wiremock.stop()
+        wiremock.resetAll()
     }
 
     @Test
