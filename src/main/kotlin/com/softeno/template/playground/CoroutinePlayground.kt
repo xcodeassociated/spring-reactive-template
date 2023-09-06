@@ -59,6 +59,12 @@ class CoroutinePlayground {
 
         // ...
     }
+
+    suspend fun sampleFunction(input: String): String =
+        withContext(Dispatchers.Default) {
+            delay(2000)
+            return@withContext input
+        }
 }
 
 suspend fun helloCoroutine(): String {

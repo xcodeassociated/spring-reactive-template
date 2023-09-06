@@ -1,10 +1,12 @@
 package com.softeno.template.sample.http.internal.reactive
 
+import com.ninjasquad.springmockk.MockkBean
 import com.softeno.template.SoftenoReactiveMongoApp
+import com.softeno.template.fixture.PermissionFixture
 import com.softeno.template.users.http.reactive.PermissionsReactiveRepository
 import com.softeno.template.users.http.reactive.UserReactiveRepository
+import io.mockk.every
 import kotlinx.coroutines.reactive.awaitFirstOrNull
-import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,22 +16,19 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.fromApplication
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.util.TestPropertyValues
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.springframework.context.ApplicationContextInitializer
 import org.springframework.context.ConfigurableApplicationContext
-import org.springframework.context.annotation.Bean
-import org.springframework.kafka.test.context.EmbeddedKafka
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.testcontainers.containers.MongoDBContainer
-import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
-
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 
 @SpringBootTest(classes = [SoftenoReactiveMongoApp::class],
@@ -37,7 +36,6 @@ import org.testcontainers.utility.DockerImageName
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ContextConfiguration(initializers = [BaseIntegrationTest.Companion.Initialaizer::class])
 @EnableConfigurationProperties
-@EmbeddedKafka(partitions = 1, brokerProperties = ["listeners=PLAINTEXT://localhost:9093", "port=9093"])
 @ConfigurationPropertiesScan("com.softeno")
 @AutoConfigureWebTestClient(timeout = "6000")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -96,7 +94,7 @@ class ContextLoadsTest : BaseIntegrationTest() {
 class ReactivePermissionTest : BaseIntegrationTest() {
 
     @Autowired
-    lateinit var webClient: WebTestClient
+    private lateinit var webClient: WebTestClient
 
     @Test
     fun shouldReturnEmptyPermissionResponse() {
@@ -105,4 +103,34 @@ class ReactivePermissionTest : BaseIntegrationTest() {
             .expectStatus().isOk()
             .expectBody().json("[]")
     }
+}
+
+
+class ReactivePermissionMockedTest : BaseIntegrationTest(), PermissionFixture {
+
+    @MockkBean
+    @Order(value = Ordered.HIGHEST_PRECEDENCE)
+    lateinit var permissionsReactiveRepositoryMock: PermissionsReactiveRepository
+
+    @Autowired
+    private lateinit var webClient: WebTestClient
+
+    @Test
+    fun `should return mocked permissions`() {
+        // given
+        val aPermission = aPermission()
+        every { permissionsReactiveRepositoryMock.findAllBy(any()) }.answers {
+            Flux.just(aPermission)
+        }
+        every { permissionsReactiveRepositoryMock.deleteAll() }.answers { Mono.empty() }
+
+        // expect
+        webClient.get().uri("/reactive/permissions")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody().jsonPath("name", aPermission.name)
+
+    }
+
+
 }
