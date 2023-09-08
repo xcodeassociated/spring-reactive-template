@@ -71,14 +71,11 @@ class GraphQLExceptionHandler : DataFetcherExceptionResolverAdapter() {
 
     override fun resolveToSingleError(e: Throwable, env: DataFetchingEnvironment): GraphQLError? {
         log.error("[graphql] error: ${e.message}")
-        return super.resolveToSingleError(e, env)
-//        return when (e) {
-//            is NotFoundException -> toGraphQLError(e)
-//            else -> super.resolveToSingleError(e, env)
-//        }
+        return e.toGraphQLError()
     }
-    private fun toGraphQLError(e: Throwable): GraphQLError? {
-        log.warn("Exception while handling request: ${e.message}", e)
-        return GraphqlErrorBuilder.newError().message(e.message).errorType(ErrorType.DataFetchingException).build()
+
+    private fun Throwable.toGraphQLError(): GraphQLError? {
+        log.warn("Exception while handling request: ${this.message}", this)
+        return GraphqlErrorBuilder.newError().message(this.message).errorType(ErrorType.DataFetchingException).build()
     }
 }

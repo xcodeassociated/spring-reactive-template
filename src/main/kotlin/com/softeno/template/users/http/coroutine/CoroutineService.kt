@@ -27,8 +27,9 @@ class CoroutinePermissionService(
 ) {
 
     fun getAll(page: Int, size: Int, sort: String, direction: String): Flow<PermissionDto> =
-        permissionCoroutineRepository.findAllBy(getPageRequest(page, size, sort, direction))
-            .map { it.toDto() }
+        // note: trigger graphql error handler
+//         throw RuntimeException("xd")
+        permissionCoroutineRepository.findAllBy(getPageRequest(page, size, sort, direction)).map { it.toDto() }
 
     suspend fun get(id: String): PermissionDto? {
         // note: it can be done by: permissionCoroutineRepository.findById(id) -> Permission?
