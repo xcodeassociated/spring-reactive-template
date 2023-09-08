@@ -24,6 +24,10 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.test.autoconfigure.core.AutoConfigureCache
+import org.springframework.boot.test.autoconfigure.graphql.AutoConfigureGraphQl
+import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureGraphQlTester
+import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.util.TestPropertyValues
@@ -31,6 +35,7 @@ import org.springframework.context.ApplicationContextInitializer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
+import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.client.WebClient
@@ -50,6 +55,10 @@ import reactor.core.publisher.Mono
 @ConfigurationPropertiesScan("com.softeno")
 @AutoConfigureWebTestClient(timeout = "6000")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@AutoConfigureCache
+@AutoConfigureJson
+@AutoConfigureGraphQl
+@AutoConfigureGraphQlTester
 abstract class BaseIntegrationTest {
 
     companion object {
@@ -212,4 +221,40 @@ interface ExternalApiAbility {
                 )
         )
     }
+}
+
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class GraphqlPermissionControllerTest : BaseIntegrationTest(), PermissionFixture {
+
+    @Autowired
+    private lateinit var graphQlTester: GraphQlTester
+
+    @Test
+    fun `should get permissions`() = runTest {
+        // given
+        val aPermission = aPermissionToSave()
+        permissionsReactiveRepository.save(aPermission).awaitSingle()
+
+        val query = """
+            query {
+              getAllPermissions(page: 0, size:10, sort:"id", direction:"ASC") {
+                name,
+                description
+              }
+            }
+        """.trimIndent()
+
+        // note: returned result differs from graphigl because we use: .path("getAllPermissions")
+        val expected = """
+            [{"name":"${aPermission.name}","description":"${aPermission.description}"}]
+        """.trimIndent()
+
+        // expect
+        graphQlTester.document(query)
+            .execute()
+            .path("getAllPermissions")
+            .matchesJson(expected)
+    }
+
 }

@@ -12,10 +12,11 @@ class SampleResponseDtoFixture {
     }
 }
 
+// todo: refactor and randomize
 interface PermissionFixture {
 
-
     fun aPermission(): Permission {
+        // todo: randomize data
         return Permission(
             id = "",
             createdDate = null,
@@ -23,6 +24,20 @@ interface PermissionFixture {
             modifiedByUser = "",
             lastModifiedDate = null,
             version = 0.toLong(),
+            name = "some permission",
+            description = "some description"
+        )
+    }
+
+    fun aPermissionToSave(): Permission {
+        // todo: randomize data
+        return Permission(
+            id = null,
+            createdDate = null,
+            createdByUser = null,
+            modifiedByUser = null,
+            lastModifiedDate = null,
+            version = null,
             name = "some permission",
             description = "some description"
         )

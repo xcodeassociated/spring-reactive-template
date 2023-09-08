@@ -92,6 +92,9 @@ class SecurityConfig {
                     "/rsocket/**",
                     // monitoring
                     "/actuator/**",
+                    //graphql client: graphiql
+                    "/graphiql/**",
+                    "/favicon.ico",
                     // springdocs
                     "/swagger-ui.html",
                     "/webjars/**",
@@ -99,7 +102,7 @@ class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs/**")
                     .permitAll()
-                    .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**" ).hasAuthority("ROLE_ADMIN")
+                    .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**", "/graphql/**").hasAuthority("ROLE_ADMIN")
                     .pathMatchers("/sample-secured/**", "/minio/**").authenticated()
             }
             .oauth2ResourceServer {

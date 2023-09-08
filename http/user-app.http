@@ -77,3 +77,24 @@ Authorization: Bearer {{oauthToken}}
 ###
 GET {{host}}/usersCount
 Authorization: Bearer {{oauthToken}}
+
+### GraphQL
+
+GRAPHQL http://localhost:8080/graphql
+Content-Type: application/graphql
+Authorization: Bearer {{oauthToken}}
+
+query {
+    getAllUsers(page: 0, size:10, sort:"id", direction:"ASC") {
+        id,
+        name,
+        permissions {
+          id,
+          name,
+          description
+        },
+        version
+  }
+}
+
+###

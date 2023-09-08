@@ -1,0 +1,56 @@
+type Query {
+
+    getAllPermissions(page: Int, size: Int, sort: String, direction: String): [Permission]
+    getPermission(id: String): Permission
+
+    getAllUsers(page: Int, size: Int, sort: String, direction: String): [User]
+    getUsersSize: Int
+    getUser(id: String): User
+}
+
+type Mutation {
+    createPermission(input: PermissionInput): Permission
+    updatePermission(id: String, input: PermissionInput): Permission
+    deletePermission(id: String): Boolean
+
+    createUser(input: UserInput): User
+    updateUser(id: String, input: UserInput): User
+    deleteUser(id: String): Boolean
+}
+
+type Permission {
+    id: String!,
+    name: String!,
+    description: String,
+    version: Int,
+    createdDate: String,
+    createdBy: String,
+    modifiedDate: String,
+    modifiedBy: String
+}
+
+type User {
+    id: String!,
+    name: String!,
+    email: String,
+    permissions: [Permission]
+    version: Int,
+    createdDate: String,
+    createdBy: String,
+    modifiedDate: String,
+    modifiedBy: String
+}
+
+input PermissionInput {
+    id: String,
+    name: String!,
+    description: String,
+    version: Int
+}
+
+input UserInput {
+    name: String,
+    email: String,
+    permissionIds: [String],
+    version: Int
+}

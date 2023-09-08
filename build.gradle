@@ -81,6 +81,10 @@ dependencies {
 	// rsocket
 	implementation 'org.springframework.boot:spring-boot-starter-rsocket'
 
+	// graphql
+	implementation 'org.springframework.boot:spring-boot-starter-graphql'
+	testImplementation 'org.springframework.graphql:spring-graphql-test'
+
 	// kafka
 	implementation 'org.springframework.kafka:spring-kafka'
 	implementation 'io.projectreactor.kafka:reactor-kafka'
