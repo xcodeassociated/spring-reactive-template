@@ -5,10 +5,10 @@ import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import com.ninjasquad.springmockk.MockkBean
 import com.softeno.template.SoftenoReactiveMongoApp
+import com.softeno.template.app.permission.db.PermissionsReactiveRepository
+import com.softeno.template.app.user.db.UserReactiveRepository
 import com.softeno.template.fixture.PermissionFixture
 import com.softeno.template.sample.http.dto.SampleResponseDto
-import com.softeno.template.users.http.reactive.PermissionsReactiveRepository
-import com.softeno.template.users.http.reactive.UserReactiveRepository
 import io.mockk.every
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.reactive.awaitFirstOrNull
@@ -114,7 +114,7 @@ class ContextLoadsTest : BaseIntegrationTest() {
     }
 }
 
-class ReactivePermissionTest : BaseIntegrationTest() {
+class ReactivePermissionTestDocument : BaseIntegrationTest() {
 
     @Test
     fun shouldReturnEmptyPermissionResponse() {
@@ -125,7 +125,7 @@ class ReactivePermissionTest : BaseIntegrationTest() {
     }
 }
 
-class ReactivePermissionMockedTest : BaseIntegrationTest(), PermissionFixture {
+class ReactivePermissionMockedTestDocument : BaseIntegrationTest(), PermissionFixture {
 
     @MockkBean
     @Order(value = Ordered.HIGHEST_PRECEDENCE)
@@ -225,7 +225,7 @@ interface ExternalApiAbility {
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class GraphqlPermissionControllerTest : BaseIntegrationTest(), PermissionFixture {
+class GraphqlPermissionControllerTestDocument : BaseIntegrationTest(), PermissionFixture {
 
     @Autowired
     private lateinit var graphQlTester: GraphQlTester

@@ -18,18 +18,18 @@ import org.springframework.stereotype.Component
 class SoftenoReactiveMongoApp
 
 fun main(args: Array<String>) {
-	runApplication<SoftenoReactiveMongoApp>(*args)
+    runApplication<SoftenoReactiveMongoApp>(*args)
 }
 
 @Component
 @Profile("playgroud")
 class SpringApplicationReadyEventListener {
-	private val logger = LoggerFactory.getLogger(this::class.java)
+    private val logger = LoggerFactory.getLogger(this::class.java)
 
-	@EventListener
-	fun onApplicationReady(event: ApplicationReadyEvent) {
-		logger.info(">> Application Ready")
-		// play around with kotlin coroutines
-		CoroutinePlayground().run()
-	}
+    @EventListener
+    fun onApplicationReady(event: ApplicationReadyEvent) {
+        logger.info(">> Application Ready")
+        // play around with kotlin coroutines
+        CoroutinePlayground().run()
+    }
 }

@@ -38,7 +38,7 @@ class SecurityConfig {
 
     }
 
-    class AuthenticationConverter:  Converter<Jwt, AbstractAuthenticationToken> {
+    class AuthenticationConverter : Converter<Jwt, AbstractAuthenticationToken> {
         override fun convert(jwt: Jwt): AbstractAuthenticationToken {
             return JwtAuthenticationToken(jwt, Jwt2AuthenticationConverter().convert(jwt))
         }
@@ -76,9 +76,10 @@ class SecurityConfig {
     }
 
     @Bean
-    fun securityWebFilterChain(http: ServerHttpSecurity,
-                               @Value("\${spring.security.oauth2.resourceserver.jwt.issuer-uri}") issuer: String,
-                               @Value("\${spring.security.oauth2.client.provider.keycloak.jwk-set-uri}") jwkSetUri: String
+    fun securityWebFilterChain(
+        http: ServerHttpSecurity,
+        @Value("\${spring.security.oauth2.resourceserver.jwt.issuer-uri}") issuer: String,
+        @Value("\${spring.security.oauth2.client.provider.keycloak.jwk-set-uri}") jwkSetUri: String
     ): SecurityWebFilterChain {
         return http
             .cors().configurationSource(corsConfigurationSource()).and()
@@ -100,15 +101,16 @@ class SecurityConfig {
                     "/webjars/**",
                     "/swagger-resources/**",
                     "/swagger-ui/**",
-                    "/v3/api-docs/**")
+                    "/v3/api-docs/**"
+                )
                     .permitAll()
                     .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**", "/graphql/**").hasAuthority("ROLE_ADMIN")
                     .pathMatchers("/sample-secured/**", "/minio/**").authenticated()
             }
             .oauth2ResourceServer {
                 it.jwt().jwtDecoder(jwtDecoder(issuer, jwkSetUri))
-                it.jwt().jwtAuthenticationConverter {
-                    jwt -> Mono.just(AuthenticationConverter().convert(jwt))
+                it.jwt().jwtAuthenticationConverter { jwt ->
+                    Mono.just(AuthenticationConverter().convert(jwt))
                 }
             }
             .build()

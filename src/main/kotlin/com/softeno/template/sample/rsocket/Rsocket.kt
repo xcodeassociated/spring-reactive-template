@@ -33,6 +33,7 @@ class StockPricesRSocketController(private val stockService: StockService) {
             .map { n: Long -> n * n }
             .onErrorReturn(-1L)
     }
+
     @MessageMapping("stock.single")
     fun singlePrice(symbol: String): Mono<StockPrice> = stockService.getSingle(symbol)
 
@@ -75,9 +76,10 @@ class StockService {
     private val pricesForStock = ConcurrentHashMap<String, Flux<StockPrice>>()
     private val log = LogFactory.getLog(javaClass)
 
-    fun getSingle(symbol: String): Mono<StockPrice> = Mono.just(StockPrice(symbol, randomStockPrice(), LocalDateTime.now()))
-        .doOnSubscribe { log.info("New subscription for SINGLE symbol $symbol.") }
-        .share()
+    fun getSingle(symbol: String): Mono<StockPrice> =
+        Mono.just(StockPrice(symbol, randomStockPrice(), LocalDateTime.now()))
+            .doOnSubscribe { log.info("New subscription for SINGLE symbol $symbol.") }
+            .share()
 
     fun streamOfPrices(symbol: String): Flux<StockPrice> {
         return pricesForStock.computeIfAbsent(symbol) {

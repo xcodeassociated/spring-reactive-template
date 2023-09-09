@@ -2,8 +2,8 @@ package com.softeno.template.sample.kafka
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.softeno.template.users.kafka.config.KafkaApplicationProperties
-import com.softeno.template.users.kafka.dto.KafkaMessage
+import com.softeno.template.app.kafka.config.KafkaApplicationProperties
+import com.softeno.template.app.kafka.dto.KafkaMessage
 import org.apache.commons.logging.LogFactory
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.springframework.beans.factory.annotation.Qualifier
@@ -20,7 +20,7 @@ import reactor.kafka.sender.SenderResult
 class ReactiveKafkaSampleController(
     @Qualifier(value = "kafkaSampleConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
     private val objectMapper: ObjectMapper
-): CommandLineRunner {
+) : CommandLineRunner {
     private val log = LogFactory.getLog(javaClass)
 
     private fun consumeKafkaMessage(): Flux<JsonNode> {

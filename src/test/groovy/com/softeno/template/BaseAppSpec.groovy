@@ -1,7 +1,7 @@
 package com.softeno.template
 
-import com.softeno.template.users.http.reactive.PermissionsReactiveRepository
-import com.softeno.template.users.http.reactive.UserReactiveRepository
+import com.softeno.template.app.permission.db.PermissionsReactiveRepository
+import com.softeno.template.app.user.db.UserReactiveRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan
 import org.springframework.boot.context.properties.EnableConfigurationProperties

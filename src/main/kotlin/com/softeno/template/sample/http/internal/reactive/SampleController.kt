@@ -24,13 +24,14 @@ class SampleController(private val sampleService: SampleService) {
     @PutMapping("/{id}")
     fun putHandler(@PathVariable id: String, @RequestBody request: SampleResponseDto): Mono<SampleResponseDto> =
         sampleService.putHandler(id, request)
+
     @DeleteMapping("/{id}")
     fun deleteHandler(@PathVariable id: String): Mono<Void> = sampleService.deleteHandler(id)
 
 }
 
 @Service
-class SampleService{
+class SampleService {
     private val log = LogFactory.getLog(javaClass)
 
     fun postHandler(request: SampleResponseDto): Mono<SampleResponseDto> {

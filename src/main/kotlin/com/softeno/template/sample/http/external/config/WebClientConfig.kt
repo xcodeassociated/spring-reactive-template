@@ -27,13 +27,19 @@ class WebClientConfig {
         val authorizedClientProvider = ReactiveOAuth2AuthorizedClientProviderBuilder.builder()
             .clientCredentials()
             .build()
-        val authorizedClientManager = AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager(clientRegistrationRepository, authorizedClientService)
+        val authorizedClientManager = AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager(
+            clientRegistrationRepository,
+            authorizedClientService
+        )
         authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider)
         return authorizedClientManager
     }
 
     @Bean(value = ["external"])
-    fun buildWebClient(config: ExternalClientConfig, authorizedClientManager: ReactiveOAuth2AuthorizedClientManager): WebClient {
+    fun buildWebClient(
+        config: ExternalClientConfig,
+        authorizedClientManager: ReactiveOAuth2AuthorizedClientManager
+    ): WebClient {
         val oauth = ServerOAuth2AuthorizedClientExchangeFilterFunction(authorizedClientManager)
         oauth.setDefaultClientRegistrationId("keycloak")
 

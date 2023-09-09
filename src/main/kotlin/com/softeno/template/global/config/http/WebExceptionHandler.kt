@@ -39,7 +39,7 @@ class GlobalErrorWebExceptionHandler(
 ) {
     init {
         this.setMessageWriters(configurer.writers)
-        this.setMessageReaders(configurer.readers);
+        this.setMessageReaders(configurer.readers)
     }
 
     private val log = LogFactory.getLog(javaClass)
@@ -84,8 +84,10 @@ class GlobalErrorWebExceptionHandler(
     private fun renderErrorResponse(request: ServerRequest): Mono<ServerResponse?> {
         val errorPropertiesMap = getCustomErrorAttributes(request, includeStackTrace = true)
 
-        log.warn("Rendering response for exception of error code: ${errorPropertiesMap["errorCode"]} " +
-                "and type: ${errorPropertiesMap["error"]} with properties: $errorPropertiesMap")
+        log.warn(
+            "Rendering response for exception of error code: ${errorPropertiesMap["errorCode"]} " +
+                    "and type: ${errorPropertiesMap["error"]} with properties: $errorPropertiesMap"
+        )
 
         return ServerResponse.status(HttpStatus.valueOf(errorPropertiesMap["status"] as Int))
             .contentType(MediaType.APPLICATION_JSON)

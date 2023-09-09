@@ -2,8 +2,8 @@
 
 package com.softeno.template.fixture
 
+import com.softeno.template.app.permission.db.PermissionDocument
 import com.softeno.template.sample.http.dto.SampleResponseDto
-import com.softeno.template.users.db.Permission
 
 class SampleResponseDtoFixture {
     companion object {
@@ -15,9 +15,9 @@ class SampleResponseDtoFixture {
 // todo: refactor and randomize
 interface PermissionFixture {
 
-    fun aPermission(): Permission {
+    fun aPermission(): PermissionDocument {
         // todo: randomize data
-        return Permission(
+        return PermissionDocument(
             id = "",
             createdDate = null,
             createdByUser = "",
@@ -29,9 +29,9 @@ interface PermissionFixture {
         )
     }
 
-    fun aPermissionToSave(): Permission {
+    fun aPermissionToSave(): PermissionDocument {
         // todo: randomize data
-        return Permission(
+        return PermissionDocument(
             id = null,
             createdDate = null,
             createdByUser = null,

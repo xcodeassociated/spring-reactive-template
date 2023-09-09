@@ -13,7 +13,7 @@ class CoroutinePlayground {
         logger.info(">> Coroutine playground started")
 
         // note: global `coroutineScope` exception handler
-        val exceptionHandler = CoroutineExceptionHandler{ context: CoroutineContext, exception: Throwable ->
+        val exceptionHandler = CoroutineExceptionHandler { context: CoroutineContext, exception: Throwable ->
             logger.error(">> Global CoroutineExceptionHandler: $exception")
         }
 
@@ -71,6 +71,7 @@ suspend fun helloCoroutine(): String {
     delay(500)
     return "hello"
 }
+
 suspend fun helloCoroutineWithContext(): String {
     return withContext(Dispatchers.IO) {
         delay(1000)

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <property name="projectName" value="template-service"/>
-    <property name="defaultPattern" value="%d{ISO8601} [${projectName}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
+    <property name="defaultPattern"
+              value="%d{ISO8601} [${projectName}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
 
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
         <layout class="ch.qos.logback.classic.PatternLayout">
@@ -13,15 +14,15 @@
 
     <springProfile name="dev">
         <root level="info">
-            <appender-ref ref="Console" />
+            <appender-ref ref="Console"/>
         </root>
         <logger name="com.softeno" level="trace" additivity="false">
-            <appender-ref ref="Console" />
+            <appender-ref ref="Console"/>
         </logger>
     </springProfile>
 
     <springProfile name="!dev">
-        <property name="LOGS" value="./logs" />
+        <property name="LOGS" value="./logs"/>
         <appender name="logstash" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
             <destination>localhost:50000</destination>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
@@ -66,14 +67,14 @@
             </rollingPolicy>
         </appender>
         <root level="info">
-            <appender-ref ref="RollingFile" />
-            <appender-ref ref="Console" />
-            <appender-ref ref="logstash" />
+            <appender-ref ref="RollingFile"/>
+            <appender-ref ref="Console"/>
+            <appender-ref ref="logstash"/>
         </root>
         <logger name="com.softeno" level="trace" additivity="false">
-            <appender-ref ref="RollingFile" />
-            <appender-ref ref="Console" />
-            <appender-ref ref="logstash" />
+            <appender-ref ref="RollingFile"/>
+            <appender-ref ref="Console"/>
+            <appender-ref ref="logstash"/>
         </logger>
     </springProfile>
 

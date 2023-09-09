@@ -31,7 +31,11 @@ class MinioAdapter(private val minioClient: MinioClient, private val config: Ext
                         .build()
                     val response: ObjectWriteResponse = minioClient.uploadObject(uploadObjectArgs)
                     tuple.t2.delete()
-                    UploadResponse(versionId = response.versionId() ?: "", objectId = response.`object`(), bucket = response.bucket())
+                    UploadResponse(
+                        versionId = response.versionId() ?: "",
+                        objectId = response.`object`(),
+                        bucket = response.bucket()
+                    )
                 }.map { it() }
             }
         }

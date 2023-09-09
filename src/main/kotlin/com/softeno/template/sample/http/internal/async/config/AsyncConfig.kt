@@ -24,7 +24,7 @@ class AsyncExecutorConfig {
     }
 }
 
-class AsyncExceptionHandler: AsyncUncaughtExceptionHandler {
+class AsyncExceptionHandler : AsyncUncaughtExceptionHandler {
     private val log = LogFactory.getLog(javaClass)
 
     override fun handleUncaughtException(ex: Throwable, method: Method, vararg params: Any) {
@@ -35,7 +35,7 @@ class AsyncExceptionHandler: AsyncUncaughtExceptionHandler {
 
 @Configuration
 @EnableAsync
-class AsyncConfig: AsyncConfigurer {
+class AsyncConfig : AsyncConfigurer {
     override fun getAsyncUncaughtExceptionHandler(): AsyncUncaughtExceptionHandler {
         return AsyncExceptionHandler()
     }
