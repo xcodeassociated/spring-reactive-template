@@ -1,5 +1,7 @@
 package com.softeno.template.users.http.coroutine
 
+import com.softeno.template.users.db.Permission
+import com.softeno.template.users.db.User
 import com.softeno.template.users.http.dto.PermissionInput
 import com.softeno.template.users.http.dto.UserInput
 import graphql.ErrorType
@@ -7,15 +9,13 @@ import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.schema.DataFetchingEnvironment
 import org.apache.commons.logging.LogFactory
-import org.springframework.graphql.data.method.annotation.Argument
-import org.springframework.graphql.data.method.annotation.MutationMapping
-import org.springframework.graphql.data.method.annotation.QueryMapping
-import org.springframework.graphql.data.method.annotation.SchemaMapping
+import org.springframework.graphql.data.method.annotation.*
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Controller
 import reactor.core.publisher.Mono
 import java.security.Principal
+
 
 @Controller
 class GraphqlPermissionController(
@@ -45,13 +45,21 @@ class GraphqlUserController (
 ) {
     @SchemaMapping(typeName = "Query", value = "getAllUsers")
     suspend fun getAllUsers(@Argument page: Int, @Argument size: Int, @Argument sort: String, @Argument direction: String, principal: Principal) =
-        userService.getAll(page, size, sort, direction, Mono.just(principal))
+        userService.getUsersWithoutPermissions(page, size, sort, direction, Mono.just(principal))
 
     @QueryMapping
     suspend fun getUsersSize() = userService.size()
 
-    @QueryMapping
+    @SchemaMapping(typeName = "Query", value = "getUser")
     suspend fun getUser(@Argument id: String) = userService.get(id)
+
+//    @SchemaMapping(typeName="User", field="permissions")
+//    suspend fun getUserPermissions(user: User) = userService.getUserPermissions(user)
+
+    @BatchMapping(typeName = "User", field = "permissions")
+    suspend fun getUsersWithPermissions(users: List<User>): Map<User, List<Permission>> {
+        return userService.getUserAndPermissions(users)
+    }
 
     @MutationMapping
     suspend fun createUser(@Argument input: UserInput) = userService.create(input)

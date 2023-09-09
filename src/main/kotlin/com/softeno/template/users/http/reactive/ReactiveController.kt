@@ -4,6 +4,9 @@ import com.softeno.template.users.db.Permission
 import com.softeno.template.users.db.QPermission
 import com.softeno.template.users.db.User
 import com.softeno.template.users.event.AppEvent
+import com.softeno.template.users.http.coroutine.PermissionNotFoundException
+import com.softeno.template.users.http.coroutine.UserNotFoundException
+import com.softeno.template.users.http.coroutine.VersionMissingException
 import com.softeno.template.users.http.dto.*
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Pageable
@@ -47,6 +50,7 @@ class ReactivePermissionController(
         val permission = QPermission.permission
         val predicate = permission.id.eq(id)
         return permissionsReactiveRepository.findOne(predicate)
+            .switchIfEmpty(Mono.error(UserNotFoundException("User not found with id: $id")))
             .map { it.toDto() }
     }
 
@@ -60,7 +64,7 @@ class ReactivePermissionController(
     @PutMapping("/permissions/{id}")
     fun updatePermission(@PathVariable id: String, @RequestBody(required = true) input: PermissionInput): Mono<PermissionDto> =
         permissionsReactiveMongoTemplate.findAndModify(id, input)
-            .switchIfEmpty(Mono.error(RuntimeException("Permission: $id Not Found")))
+            .switchIfEmpty(Mono.error(PermissionNotFoundException("Permission: $id Not Found")))
             .map { it.toDto() }
 }
 
@@ -103,7 +107,7 @@ class ReactiveUserController(
         val permissions: Mono<List<Permission>> = Flux.fromIterable(input.permissionIds)
             .flatMap {
                     productId: String -> permissionsReactiveRepository.findById(productId)
-                        .switchIfEmpty(Mono.error(RuntimeException("error: permission not found")))
+                        .switchIfEmpty(Mono.error(PermissionNotFoundException("error: permission not found")))
             }
             .collectList()
 
@@ -126,14 +130,14 @@ class ReactiveUserController(
         val permissions: Mono<List<Permission>> = Flux.fromIterable(input.permissionIds)
             .flatMap {
                     productId: String -> permissionsReactiveRepository.findById(productId)
-                        .switchIfEmpty(Mono.error(RuntimeException("error: permission not found")))
+                        .switchIfEmpty(Mono.error(PermissionNotFoundException("error: permission not found")))
             }
             .collectList()
 
-        val version = input.version ?: throw RuntimeException("error: version is null")
+        val version = input.version ?: throw VersionMissingException("error: version is null")
 
         return userReactiveRepository.findByIdAndVersion(id, version)
-            .switchIfEmpty(Mono.error(RuntimeException("error: user not found")))
+            .switchIfEmpty(Mono.error(UserNotFoundException("error: user not found")))
             .zipWith(permissions)
             .map { tuple -> User(id = tuple.t1.id, name = input.name, email = input.email,
                 permissions = tuple.t2.map { permission -> permission.id!! }.toSet(),
@@ -156,7 +160,9 @@ class ReactiveUserController(
     @GetMapping("/users/{id}")
     fun getUserWithMappedPermissions(@PathVariable id: String): Mono<UserDto> {
         val user: Mono<User> = userReactiveRepository.findById(id)
-        return user.map { e -> e.permissions }
+        return user
+            .switchIfEmpty(Mono.error(UserNotFoundException("error: user does not exists")))
+            .map { e -> e.permissions }
             .map { e -> permissionsReactiveRepository.findByIdIn(e).collectList() }
             .map { e ->
                 e.zipWith(user)

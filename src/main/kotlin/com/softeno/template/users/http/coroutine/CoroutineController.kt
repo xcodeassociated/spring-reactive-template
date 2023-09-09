@@ -1,10 +1,9 @@
 package com.softeno.template.users.http.coroutine
 
-import com.softeno.template.users.http.dto.PermissionDto
-import com.softeno.template.users.http.dto.PermissionInput
-import com.softeno.template.users.http.dto.UserDto
-import com.softeno.template.users.http.dto.UserInput
+import com.softeno.template.users.http.dto.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.validation.annotation.Validated
@@ -27,17 +26,17 @@ class CoroutinePermissionController(
         @RequestParam(required = false, defaultValue = "id") sort: String,
         @RequestParam(required = false, defaultValue = "ASC") direction: String,
         @AuthenticationPrincipal oauth2User: Mono<OAuth2User>
-    ): Flow<PermissionDto> = permissionService.getAll(page, size, sort, direction)
+    ): Flow<PermissionDto> = permissionService.getAll(page, size, sort, direction).map { it.toDto() }
 
     @GetMapping("/permissions/{id}")
-    suspend fun getPermission(@PathVariable id: String): PermissionDto? = permissionService.get(id)
+    suspend fun getPermission(@PathVariable id: String): PermissionDto? = permissionService.get(id).toDto()
 
     @DeleteMapping("/permissions/{id}")
     suspend fun deletePermission(@PathVariable id: String) = permissionService.delete(id)
 
     @PostMapping("/permissions")
     suspend fun createPermission(@RequestBody(required = true) input: PermissionInput): PermissionDto =
-        permissionService.create(input)
+        permissionService.create(input).toDto()
 
     @PutMapping("/permissions/{id}")
     suspend fun updatePermission(@PathVariable id: String, @RequestBody(required = true) input: PermissionInput): PermissionDto? =
@@ -53,17 +52,21 @@ class CoroutineUserController(
 
     @PostMapping("/users")
     suspend fun createUser(@RequestBody(required = true) input: UserInput): UserDto =
-        userService.create(input)
+        userService.create(input).toDto()
 
     @PutMapping("/users/{id}")
     suspend fun updateUser(@PathVariable id: String, @RequestBody(required = true) input: UserInput): UserDto =
-        userService.update(id, input)
+        userService.update(id, input).toDto()
 
     @DeleteMapping("/users/{id}")
     suspend fun deleteUser(@PathVariable id: String) = userService.delete(id)
 
     @GetMapping("/users/{id}")
-    suspend fun getUserWithMappedPermissions(@PathVariable id: String): UserDto? = userService.get(id)
+    suspend fun getUserWithMappedPermissions(@PathVariable id: String): UserDto? {
+        val user = userService.get(id)
+        val permissions = userService.getUserPermissions(user).toList()
+        return user.toDto(permissions)
+    }
 
     @GetMapping("/users")
     suspend fun getAllUsersMapped(
@@ -77,4 +80,9 @@ class CoroutineUserController(
     @GetMapping("/usersCount")
     suspend fun getUserSize(): Long = userService.size()
 
+}
+
+fun UserBundle.toDto(): UserDto {
+    val user = this.user
+    return user.toDto(this.permissions)
 }

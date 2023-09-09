@@ -41,7 +41,22 @@ data class UserDto(
     val email: String,
     @JsonProperty("role")
     @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
-    val permissions: List<PermissionDto>,
+    val permissions: List<PermissionDto>?,
+    val version: Long?,
+    val createdBy: String?,
+    val createdDate: LocalDateTime?,
+    val modifiedBy: String?,
+    val modifiedDate: LocalDateTime?
+)
+
+data class UserUnmappedPermissionsDto(
+    @JsonProperty("_id")
+    val id: String,
+    val name: String,
+    val email: String,
+    @JsonProperty("role")
+    @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+    val permissions: Set<String>,
     val version: Long?,
     val createdBy: String?,
     val createdDate: LocalDateTime?,
@@ -55,8 +70,12 @@ fun PermissionInput.toDocument() = Permission(id = null, name = this.name, descr
 fun Permission.toDto(): PermissionDto = PermissionDto(id = this.id, name = this.name, description = this.description, version = this.version,
     createdBy = this.createdByUser, createdDate = this.createdDate, modifiedBy = this.modifiedByUser, modifiedDate = this.lastModifiedDate)
 
-fun User.toDto(permissions: Collection<Permission>): UserDto = UserDto(id = this.id!!, name = this.name,
-    email = this.email, permissions = permissions.map { it.toDto() }, version = this.version,
+fun User.toDto(): UserUnmappedPermissionsDto = UserUnmappedPermissionsDto(id = this.id!!, name = this.name,
+    email = this.email, permissions = this.permissions, version = this.version,
+    createdBy = this.createdByUser, createdDate = this.createdDate, modifiedBy = this.modifiedByUser, modifiedDate = this.lastModifiedDate)
+
+fun User.toDto(permissions: Collection<Permission>?): UserDto = UserDto(id = this.id!!, name = this.name,
+    email = this.email, permissions = permissions?.map { it.toDto() }, version = this.version,
     createdBy = this.createdByUser, createdDate = this.createdDate, modifiedBy = this.modifiedByUser, modifiedDate = this.lastModifiedDate)
 
 fun getPageRequest(page: Int, size: Int, sort: String, direction: String) =
