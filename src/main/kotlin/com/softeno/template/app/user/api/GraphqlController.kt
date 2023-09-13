@@ -22,8 +22,7 @@ class GraphqlUserController(
         @Argument sort: String,
         @Argument direction: String,
         principal: Principal
-    ) =
-        userDocumentService.getUsersWithoutPermissions(page, size, sort, direction, Mono.just(principal))
+    ) = userDocumentService.getUsersWithoutPermissions(page, size, sort, direction, Mono.just(principal))
 
     @QueryMapping
     suspend fun getUsersSize() = userService.size()
