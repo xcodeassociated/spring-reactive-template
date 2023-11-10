@@ -22,9 +22,11 @@
     </springProfile>
 
     <springProfile name="!dev">
+        <property name="LOGSTASH_HOST" value="${logstash.host:-localhost}" />
+        <property name="LOGSTASH_PORT" value="${logstash.port:-50000}" />
         <property name="LOGS" value="./logs"/>
         <appender name="logstash" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-            <destination>localhost:50000</destination>
+            <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
                 <providers>
                     <mdc/>
@@ -42,9 +44,9 @@
                     </pattern>
                     <stackTrace>
                         <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
-                            <maxDepthPerThrowable>256</maxDepthPerThrowable>
+                            <maxDepthPerThrowable>2048</maxDepthPerThrowable>
                             <maxLength>32768</maxLength>
-                            <shortenedClassNameLength>128</shortenedClassNameLength>
+                            <shortenedClassNameLength>256</shortenedClassNameLength>
                             <rootCauseFirst>true</rootCauseFirst>
                         </throwableConverter>
                     </stackTrace>
