@@ -19,7 +19,7 @@ class ReactiveCircuitBreakerConfig {
     fun reactiveResilience4JCircuitBreakerFactory(): ReactiveCircuitBreakerFactory<*, *> {
         val circuitBreakerRegistry = CircuitBreakerRegistry.ofDefaults()
         val timeLimiterRegistry = TimeLimiterRegistry.ofDefaults()
-        return ReactiveResilience4JCircuitBreakerFactory(circuitBreakerRegistry, timeLimiterRegistry)
+        return ReactiveResilience4JCircuitBreakerFactory(circuitBreakerRegistry, timeLimiterRegistry, null)
     }
 
     @Bean

@@ -35,7 +35,7 @@ class ReactiveKafkaSampleConsumerConfig {
         props: KafkaApplicationProperties
     ): ReceiverOptions<String, JsonNode> {
         val basicReceiverOptions: ReceiverOptions<String, JsonNode> =
-            ReceiverOptions.create(kafkaProperties.buildConsumerProperties())
+            ReceiverOptions.create(kafkaProperties.buildConsumerProperties(null))
         return basicReceiverOptions.subscription(Collections.singletonList(props.rx))
     }
 
@@ -49,7 +49,7 @@ class ReactiveKafkaSampleConsumerConfig {
 class ReactiveKafkaSampleProducerConfig {
     @Bean(value = ["kafkaSampleProducerTemplate"])
     fun reactiveKafkaProducerTemplate(properties: KafkaProperties): ReactiveKafkaProducerTemplate<String, KafkaMessage> {
-        val props = properties.buildProducerProperties()
+        val props = properties.buildProducerProperties(null)
         return ReactiveKafkaProducerTemplate<String, KafkaMessage>(SenderOptions.create(props))
     }
 }
@@ -62,7 +62,7 @@ class ReactiveKafkaKeycloakConsumerConfig {
         props: KafkaApplicationProperties
     ): ReceiverOptions<String, JsonNode> {
         val basicReceiverOptions: ReceiverOptions<String, JsonNode> =
-            ReceiverOptions.create(kafkaProperties.buildConsumerProperties())
+            ReceiverOptions.create(kafkaProperties.buildConsumerProperties(null))
         return basicReceiverOptions.subscription(Collections.singletonList(props.keycloak))
     }
 

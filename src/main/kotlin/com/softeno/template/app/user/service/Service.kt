@@ -28,7 +28,7 @@ import java.security.Principal
 
 
 @Service
-final class UserService(
+class UserService(
     private val userCoroutineRepository: UserCoroutineRepository,
     private val permissionService: PermissionService,
     private val userDocumentService: UserDocumentService,

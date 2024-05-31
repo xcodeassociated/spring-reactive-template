@@ -3,10 +3,12 @@ package com.softeno.template.sample.scheduled
 import com.softeno.template.sample.http.internal.async.AsyncService
 import org.apache.commons.logging.LogFactory
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.context.annotation.Profile
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import java.util.concurrent.Executor
 
+@Profile(value = ["!integration"])
 @Service
 class ScheduledService(
     @Qualifier(value = "scheduledExecutor") private val executor: Executor,
