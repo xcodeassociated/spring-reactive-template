@@ -5,11 +5,11 @@
               value="%d{ISO8601} [${projectName}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
 
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
-        <layout class="ch.qos.logback.classic.PatternLayout">
-            <Pattern>
+        <encoder>
+            <pattern>
                 ${defaultPattern}
-            </Pattern>
-        </layout>
+            </pattern>
+        </encoder>
     </appender>
 
     <springProfile name="dev">

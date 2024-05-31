@@ -82,8 +82,8 @@ class SecurityConfig {
         @Value("\${spring.security.oauth2.client.provider.keycloak.jwk-set-uri}") jwkSetUri: String
     ): SecurityWebFilterChain {
         return http
-            .cors().configurationSource(corsConfigurationSource()).and()
-            .csrf().disable()
+            .cors { it.configurationSource(corsConfigurationSource()) }
+            .csrf { it.disable() }
             .authorizeExchange { authExchange ->
                 authExchange.pathMatchers(
                     // sample
@@ -107,11 +107,11 @@ class SecurityConfig {
                     .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**", "/graphql/**").hasAuthority("ROLE_ADMIN")
                     .pathMatchers("/sample-secured/**", "/minio/**").authenticated()
             }
-            .oauth2ResourceServer {
-                it.jwt().jwtDecoder(jwtDecoder(issuer, jwkSetUri))
-                it.jwt().jwtAuthenticationConverter { jwt ->
+            .oauth2ResourceServer { rss ->
+                rss.jwt { jwtDecoder(issuer, jwkSetUri) }
+                rss.jwt { it.jwtAuthenticationConverter { jwt ->
                     Mono.just(AuthenticationConverter().convert(jwt))
-                }
+                } }
             }
             .build()
     }

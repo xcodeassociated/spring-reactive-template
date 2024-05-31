@@ -17,11 +17,11 @@ class SecurityConfig {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     fun securityWebFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
-        return http.authorizeExchange()
-            .anyExchange().permitAll()
-            .and()
-            .csrf().disable()
-            .cors().disable()
-            .build()
+        return http.authorizeExchange { ae ->
+            ae.anyExchange().permitAll()
+                .let { http }
+                .csrf { it.disable() }
+                .cors { it.disable() }
+        }.build()
     }
 }

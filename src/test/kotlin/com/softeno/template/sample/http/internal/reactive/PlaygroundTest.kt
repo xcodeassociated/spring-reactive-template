@@ -7,7 +7,6 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -16,7 +15,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class PlaygroundTest {
 
     @Test
@@ -33,7 +31,6 @@ class PlaygroundTest {
 
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class PlaygroundMockTest {
 
     @Test

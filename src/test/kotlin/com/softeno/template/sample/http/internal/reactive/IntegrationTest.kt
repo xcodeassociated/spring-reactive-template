@@ -10,7 +10,6 @@ import com.softeno.template.app.user.db.UserReactiveRepository
 import com.softeno.template.fixture.PermissionFixture
 import com.softeno.template.sample.http.dto.SampleResponseDto
 import io.mockk.every
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -50,7 +49,7 @@ import reactor.core.publisher.Mono
     properties = ["spring.profiles.active=integration"],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
-@ContextConfiguration(initializers = [BaseIntegrationTest.Companion.Initialaizer::class])
+@ContextConfiguration(initializers = [BaseIntegrationTest.Companion.Initializer::class])
 @EnableConfigurationProperties
 @ConfigurationPropertiesScan("com.softeno")
 @AutoConfigureWebTestClient(timeout = "6000")
@@ -63,18 +62,18 @@ abstract class BaseIntegrationTest {
 
     companion object {
 
-        private const val databaseName = "example1"
+        private const val DATABASE_NAME = "example1"
 
         @JvmField
         val dbContainer: MongoDBContainer = MongoDBContainer(DockerImageName.parse("mongo:6.0.4"))
 
-        class Initialaizer : ApplicationContextInitializer<ConfigurableApplicationContext> {
+        class Initializer : ApplicationContextInitializer<ConfigurableApplicationContext> {
             override fun initialize(applicationContext: ConfigurableApplicationContext) {
                 Companion.dbContainer.start()
 
                 TestPropertyValues.of(
-                    "spring.data.mongodb.uri=${Companion.dbContainer.connectionString}/${databaseName}",
-                    "mongo.database=$databaseName"
+                    "spring.data.mongodb.uri=${Companion.dbContainer.connectionString}/${DATABASE_NAME}",
+                    "mongo.database=$DATABASE_NAME"
                 ).applyTo(applicationContext.environment)
             }
 
@@ -153,7 +152,6 @@ class ReactivePermissionMockedTestDocument : BaseIntegrationTest(), PermissionFi
 
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class ExternalControllerTest : BaseIntegrationTest(), ExternalApiAbility {
 
     @Autowired
@@ -224,7 +222,6 @@ interface ExternalApiAbility {
 }
 
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class GraphqlPermissionControllerTestDocument : BaseIntegrationTest(), PermissionFixture {
 
     @Autowired
