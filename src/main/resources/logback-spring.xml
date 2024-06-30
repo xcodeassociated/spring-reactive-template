@@ -22,7 +22,7 @@
     </springProfile>
 
     <springProfile name="!dev">
-        <property name="LOGSTASH_HOST" value="${logstash.host:-localhost}" />
+        <property name="LOGSTASH_HOST" value="${logstash.host:-logstash}" />
         <property name="LOGSTASH_PORT" value="${logstash.port:-50000}" />
         <property name="LOGS" value="./logs"/>
         <appender name="logstash" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
