@@ -1,7 +1,7 @@
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre
 LABEL authors="xcodeassociated"
 
-COPY ./*.jar ./app.jar
+COPY ./build/libs/*.jar ./app.jar
 
 EXPOSE 8080
 EXPOSE 8081
