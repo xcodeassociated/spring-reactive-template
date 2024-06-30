@@ -1,7 +1,7 @@
-FROM eclipse-temurin:17-jre-ubi9-minimal
+FROM eclipse-temurin:17-jre-alpine
 LABEL authors="xcodeassociated"
 
-COPY ./build/libs/*.jar ./app.jar
+COPY ./*.jar ./app.jar
 
 EXPOSE 8080
 EXPOSE 8081
