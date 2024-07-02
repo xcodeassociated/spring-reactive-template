@@ -53,11 +53,13 @@ class WebSocketConfig(private val reactiveMessageService: ReactiveMessageService
             val userIdMessage: Flux<String> = authentication.flux().map {
                 val token = (it as JwtAuthenticationToken).token
                 val userId = token.claims["sub"]
-                (Message(from = "SYSTEM", to = sessionId, content = "$userId").toJson(objectMapper))
+                Message(from = "SYSTEM", to = sessionId, content = "$userId").toJson(objectMapper)
             }
-            // todo: reade messages from database as Flux
+
+            // todo: read messages from database as Flux
             val welcomeMessages: Flux<String> =
                 Flux.just(Message(from = "SYSTEM", to = sessionId, content = "HELLO").toJson(objectMapper))
+
             val messages: Flux<WebSocketMessage> =
                 Flux.concat(userIdMessage, welcomeMessages, reactiveMessageService.getMessages(sessionId))
                     .map {
@@ -92,6 +94,7 @@ class ReactiveMessageService(
     private val objectMapper: ObjectMapper
 ) {
     private val sinks: MutableMap<String, Many<String>> = mutableMapOf()
+
     fun send(next: Message, session: String): Message {
         val payload = next.toJson(objectMapper)
         getSink(session).emitNext(payload, Sinks.EmitFailureHandler.FAIL_FAST)

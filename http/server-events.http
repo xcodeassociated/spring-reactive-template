@@ -1,0 +1,9 @@
+### Get server event stream
+GET {{host}}/coroutine/currency-rate/current
+Accept: text/event-stream
+Authorization: Bearer {{oauthToken}}
+
+### Get server event stream of user notification
+GET {{host}}/coroutine/notification/user
+Accept: text/event-stream
+Authorization: Bearer {{oauthToken}}
