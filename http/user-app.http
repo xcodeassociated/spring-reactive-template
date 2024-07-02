@@ -49,7 +49,7 @@ POST {{host}}/users
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
-{"name": "user: {{$uuid}}", "email":  "{{$random.email}}", "role": ["6659b09d999bc42138a9505d"]}
+{"name": "user: {{$uuid}}", "email":  "{{$random.email}}", "role": ["{{permissionId}}"]}
 
 > {%
     client.global.set("userId", response.body._id)
