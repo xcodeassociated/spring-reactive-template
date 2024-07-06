@@ -19,7 +19,7 @@ class CoroutinePermissionController(
 ) {
     //    @PreAuthorize(value = "hasRole('admin')")
     @GetMapping("/permissions")
-    fun getAllPermissions(
+    suspend fun getAllPermissions(
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "10") size: Int,
         @RequestParam(required = false, defaultValue = "id") sort: String,

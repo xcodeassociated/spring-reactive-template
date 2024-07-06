@@ -17,6 +17,7 @@ import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Profile
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
+import reactor.core.publisher.Hooks
 
 
 @SpringBootApplication
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Component
 class SoftenoReactiveMongoApp
 
 fun main(args: Array<String>) {
+    Hooks.enableAutomaticContextPropagation()
     runApplication<SoftenoReactiveMongoApp>(*args)
 }
 

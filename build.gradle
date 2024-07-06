@@ -17,7 +17,7 @@ version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '17'
 
 ext {
-	set('springCloudVersion', '2023.0.1')
+	set('springCloudVersion', '2023.0.2')
 	set('testcontainersVersion', '1.19.8')
 }
 
@@ -42,6 +42,7 @@ dependencies {
 	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-reactor'
 	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core'
 	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-reactive'
+	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-slf4j'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -111,6 +112,11 @@ dependencies {
 	// springdoc
 	implementation 'org.springdoc:springdoc-openapi-starter-common:2.5.0'
 	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.5.0'
+
+	// zipkin
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
+	implementation 'io.zipkin.reporter2:zipkin-sender-urlconnection'
 }
 
 dependencyManagement {

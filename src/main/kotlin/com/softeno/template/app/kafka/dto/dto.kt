@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class KafkaMessage(val content: String)
+data class KafkaMessage(val content: String, val traceId: String? = null, val spanId: String? = null)
 
 enum class KeycloakEventType {
     LOGIN,
@@ -14,7 +14,7 @@ enum class KeycloakEventType {
     companion object {
         @JsonCreator
         fun byString(input: String): KeycloakEventType? {
-            return values().firstOrNull { it.name.equals(input, true) }
+            return KeycloakEventType.entries.firstOrNull { it.name.equals(input, true) }
         }
     }
 }

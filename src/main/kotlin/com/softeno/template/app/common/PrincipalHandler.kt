@@ -1,5 +1,6 @@
 package com.softeno.template.app.common
 
+//import io.micrometer.tracing.Tracer
 import kotlinx.coroutines.reactive.awaitSingle
 import org.apache.commons.logging.Log
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
@@ -8,7 +9,7 @@ import reactor.core.publisher.Mono
 import java.security.Principal
 
 interface PrincipalHandler {
-    suspend fun showPrincipal(log: Log, monoPrincipal: Mono<Principal>) {
+    suspend fun showPrincipal(log: Log, monoPrincipal: Mono<Principal>){
         val principal = monoPrincipal.awaitSingle()
         log.info("principal: $principal, name: ${principal.name}")
         val authentication = ReactiveSecurityContextHolder.getContext().map { it.authentication }.awaitSingle()

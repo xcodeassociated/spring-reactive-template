@@ -41,7 +41,7 @@ GET {{host}}/users?page=0&size=10&sort=id&direction=ASC
 Authorization: Bearer {{oauthToken}}
 
 ###
-GET {{host}}/users/size
+GET {{host}}/usersCount
 Authorization: Bearer {{oauthToken}}
 
 ###

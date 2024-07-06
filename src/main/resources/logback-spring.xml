@@ -2,7 +2,7 @@
 <configuration>
     <property name="projectName" value="template-service"/>
     <property name="defaultPattern"
-              value="%d{ISO8601} [${projectName}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
+              value="%d{ISO8601} [${projectName}] [%X{traceId:-}] [%X{spanId:-}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
 
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -36,6 +36,8 @@
                             "application": "${projectName}",
                             "timestamp": "%d{yyyy-MM-dd'T'HH:mm:ss.SSSZZ}",
                             "logger": "%logger",
+                            "trace": "%X{traceId:-}",
+                            "span": "%X{spanId:-}",
                             "thread": "%thread",
                             "level": "%level",
                             "message": "%message"

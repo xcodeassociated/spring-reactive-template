@@ -14,7 +14,7 @@ import org.springframework.security.oauth2.client.web.reactive.function.client.S
 import org.springframework.web.reactive.function.client.WebClient
 
 @ConfigurationProperties(prefix = "com.softeno.external")
-data class ExternalClientConfig(val url: String, val name: String)
+data class ExternalClientConfig(val url: String, val name: String, val graphqlUrl: String)
 
 @Configuration
 class WebClientConfig {
@@ -38,12 +38,13 @@ class WebClientConfig {
     @Bean(value = ["external"])
     fun buildWebClient(
         config: ExternalClientConfig,
-        authorizedClientManager: ReactiveOAuth2AuthorizedClientManager
+        authorizedClientManager: ReactiveOAuth2AuthorizedClientManager,
+        builder: WebClient.Builder
     ): WebClient {
         val oauth = ServerOAuth2AuthorizedClientExchangeFilterFunction(authorizedClientManager)
         oauth.setDefaultClientRegistrationId("keycloak")
 
-        return WebClient.builder()
+        return builder
             .filter(oauth)
             .baseUrl(config.url)
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
