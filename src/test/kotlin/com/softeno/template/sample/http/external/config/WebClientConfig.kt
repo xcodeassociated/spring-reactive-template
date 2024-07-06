@@ -11,7 +11,6 @@ import org.springframework.web.reactive.function.client.WebClient
 @Configuration
 class WebClientConfig {
 
-
     @Bean(value = ["external"])
     fun buildWebClient(config: ExternalClientConfig): WebClient {
         return WebClient.builder()
