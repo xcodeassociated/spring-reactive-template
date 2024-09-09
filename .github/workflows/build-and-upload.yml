@@ -15,11 +15,9 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 21
@@ -30,9 +28,9 @@ jobs:
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@417ae3ccd767c252f5661f1ace9f835f9654f2b5 # v3.1.0
-
     - name: Build with Gradle Wrapper
       run: ./gradlew build
 
@@ -49,7 +47,6 @@ jobs:
 
     - name: Remove unused plain jar
       run: rm build/libs/*plain.jar
-
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -57,10 +54,11 @@ jobs:
         path: build/libs
 
   docker:
-
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: [ amd64, arm64 ]
     needs: build
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,14 +81,13 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/${{ matrix.architecture }}
           tags: xcodeassociated/spring-reactive-template:latest
 
   dependency-submission:
-
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 21
