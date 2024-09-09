@@ -82,7 +82,7 @@ jobs:
           context: .
           push: true
           platforms: linux/${{ matrix.architecture }}
-          tags: xcodeassociated/spring-reactive-template:latest
+          tags: xcodeassociated/spring-reactive-template_${{ matrix.architecture }}:latest
 
   dependency-submission:
     runs-on: ubuntu-latest
