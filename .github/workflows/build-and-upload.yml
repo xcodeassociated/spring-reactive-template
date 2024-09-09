@@ -55,9 +55,6 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture: [ amd64, arm64 ]
     needs: build
     steps:
       - name: Checkout
@@ -81,8 +78,8 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/${{ matrix.architecture }}
-          tags: xcodeassociated/spring-reactive-template:latest-${{ matrix.architecture }}
+          platforms: linux/amd64, linux/arm64
+          tags: xcodeassociated/spring-reactive-template:latest
 
   dependency-submission:
     runs-on: ubuntu-latest
