@@ -1,11 +1,11 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-	id 'org.springframework.boot' version '3.3.0'
-	id 'io.spring.dependency-management' version '1.1.5'
-	id 'org.jetbrains.kotlin.jvm' version '2.0.0'
-	id 'org.jetbrains.kotlin.plugin.spring' version '2.0.0'
-	id 'org.jetbrains.kotlin.kapt' version '2.0.0'
+	id 'org.springframework.boot' version '3.3.1'
+	id 'io.spring.dependency-management' version '1.1.6'
+	id 'org.jetbrains.kotlin.jvm' version '2.0.20'
+	id 'org.jetbrains.kotlin.plugin.spring' version '2.0.20'
+	id 'org.jetbrains.kotlin.kapt' version '2.0.20'
 	id 'com.ewerk.gradle.plugins.querydsl' version '1.0.10'
 	id 'com.google.osdetector' version '1.7.3'
 	id 'groovy'
@@ -17,8 +17,8 @@ version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '17'
 
 ext {
-	set('springCloudVersion', '2023.0.2')
-	set('testcontainersVersion', '1.19.8')
+	set('springCloudVersion', '2023.0.3')
+	set('testcontainersVersion', '1.20.1')
 }
 
 configurations {
@@ -61,11 +61,11 @@ dependencies {
 
 	// junit kotlin
 	testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test'
-	testImplementation 'io.mockk:mockk:1.13.11'
+	testImplementation 'io.mockk:mockk:1.13.12'
 	testImplementation 'com.ninja-squad:springmockk:4.0.2'
 
 	// wiremock
-	testImplementation 'org.wiremock:wiremock-standalone:3.6.0'
+	testImplementation 'org.wiremock:wiremock-standalone:3.9.1'
 
 	// spock
 	testImplementation group: 'org.codehaus.groovy', name: 'groovy-all', version: '3.0.14', ext: 'pom'
@@ -96,22 +96,22 @@ dependencies {
 
 	// macOs ARM only
 	if (osdetector.classifier == "osx-aarch_64") {
-		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.110.Final:${osdetector.classifier}")
+		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.113.Final:${osdetector.classifier}")
 	}
 
 	// s3
-	implementation 'io.minio:minio:8.5.5'
+	implementation 'io.minio:minio:8.5.12'
 
 	// monitoring
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
 	// elk
-	implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+	implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
 
 	// springdoc
-	implementation 'org.springdoc:springdoc-openapi-starter-common:2.5.0'
-	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.5.0'
+	implementation 'org.springdoc:springdoc-openapi-starter-common:2.6.0'
+	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0'
 
 	// zipkin
 	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
