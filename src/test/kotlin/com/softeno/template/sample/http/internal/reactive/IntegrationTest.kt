@@ -132,6 +132,11 @@ class ReactivePermissionMockedTestDocument : BaseIntegrationTest(), PermissionFi
     @Order(value = Ordered.HIGHEST_PRECEDENCE)
     lateinit var permissionsReactiveRepositoryMock: PermissionsReactiveRepository
 
+    @BeforeEach
+    fun initMockkRepository() {
+        every { permissionsReactiveRepositoryMock.deleteAll() }.answers { Mono.empty() }
+    }
+
     @Test
     fun `should return mocked permissions`() {
         // given
@@ -140,7 +145,6 @@ class ReactivePermissionMockedTestDocument : BaseIntegrationTest(), PermissionFi
         every { permissionsReactiveRepositoryMock.findAllBy(any()) }.answers {
             Flux.just(aPermission)
         }
-        every { permissionsReactiveRepositoryMock.deleteAll() }.answers { Mono.empty() }
 
         // expect
         webTestClient.get().uri("/reactive/permissions")
