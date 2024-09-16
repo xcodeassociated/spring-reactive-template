@@ -1,4 +1,4 @@
-package com.softeno.template.global.config.security
+package com.softeno.template.app.config.security
 
 import org.apache.commons.logging.LogFactory
 import org.springframework.context.annotation.Bean

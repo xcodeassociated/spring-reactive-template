@@ -1,4 +1,4 @@
-package com.softeno.template.global.config.security
+package com.softeno.template.app.config.security
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
