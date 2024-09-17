@@ -2,21 +2,26 @@
 
 ###
 GET {{host}}/external/{{$random.integer(0, 1000)}}
+Authorization: Bearer {{oauthToken}}
 
 ###
 POST {{host}}/external
 Content-Type: application/json
+Authorization: Bearer {{oauthToken}}
 
 {"data": "sample data: {{$uuid}}" }
 
 ###
 PUT {{host}}/external/{{$uuid}}
 Content-Type: application/json
+Authorization: Bearer {{oauthToken}}
 
 {"data": "sample data change: {{$uuid}}"}
 
 ###
 DELETE {{host}}/external/{{$random.integer(0, 1000)}}
+Authorization: Bearer {{oauthToken}}
 
 ### NO FALLBACK
 GET {{host}}/external/throw-on-fallback/{{$random.integer(0, 1000)}}
+Authorization: Bearer {{oauthToken}}

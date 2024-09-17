@@ -89,7 +89,6 @@ class SecurityConfig {
                     // sample
                     "/async/**",
                     "/sample/**",
-                    "/external/**",
                     "/rsocket/**",
                     // monitoring
                     "/actuator/**",
@@ -104,7 +103,7 @@ class SecurityConfig {
                     "/v3/api-docs/**"
                 )
                     .permitAll()
-                    .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**", "/graphql/**").hasAuthority("ROLE_ADMIN")
+                    .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**", "/graphql/**", "/external/**").hasAuthority("ROLE_ADMIN")
                     .pathMatchers("/sample-secured/**", "/minio/**").authenticated()
             }
             .oauth2ResourceServer { rss ->
