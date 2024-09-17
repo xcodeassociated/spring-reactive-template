@@ -35,7 +35,6 @@ import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.graphql.test.tester.GraphQlTester
-import org.springframework.kafka.test.context.EmbeddedKafka
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.client.WebClient
@@ -59,7 +58,6 @@ import reactor.core.publisher.Mono
 @AutoConfigureJson
 @AutoConfigureGraphQl
 @AutoConfigureGraphQlTester
-@EmbeddedKafka(partitions = 1, brokerProperties = ["listeners=PLAINTEXT://localhost:9092", "port=9092"])
 abstract class BaseIntegrationTest {
 
     companion object {

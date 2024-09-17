@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-	id 'org.springframework.boot' version '3.3.1'
+	id 'org.springframework.boot' version '3.3.3'
 	id 'io.spring.dependency-management' version '1.1.6'
 	id 'org.jetbrains.kotlin.jvm' version '2.0.20'
 	id 'org.jetbrains.kotlin.plugin.spring' version '2.0.20'
@@ -66,12 +66,6 @@ dependencies {
 	// wiremock
 	testImplementation 'org.wiremock:wiremock-standalone:3.9.1'
 
-	// spock
-	testImplementation group: 'org.codehaus.groovy', name: 'groovy-all', version: '3.0.14', ext: 'pom'
-	testImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-4.0'
-	testImplementation group: 'org.spockframework', name: 'spock-spring', version: '2.4-M1-groovy-4.0'
-	testImplementation 'org.testcontainers:spock'
-
 	// guerydsl
 	implementation ('com.querydsl:querydsl-mongodb:5.1.0') {
 		exclude group: 'org.mongodb', module: 'mongo-java-driver'
@@ -130,11 +124,6 @@ tasks.withType(KotlinCompile) {
 		freeCompilerArgs = ['-Xjsr305=strict']
 		jvmTarget = '17'
 	}
-}
-
-compileTestGroovy {
-	dependsOn tasks.getByPath('compileTestKotlin')
-	classpath += files(compileTestKotlin)
 }
 
 tasks.named('test') {
