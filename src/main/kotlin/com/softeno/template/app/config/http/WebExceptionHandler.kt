@@ -3,6 +3,7 @@ package com.softeno.template.app.config.http
 import com.softeno.template.sample.http.external.coroutine.ExternalServiceException
 import org.apache.commons.logging.LogFactory
 import org.springframework.boot.autoconfigure.web.WebProperties
+import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler
 import org.springframework.boot.web.error.ErrorAttributeOptions
 import org.springframework.boot.web.reactive.error.ErrorAttributes
 import org.springframework.context.ApplicationContext
@@ -33,7 +34,7 @@ class GlobalErrorWebExceptionHandler(
     resources: WebProperties.Resources,
     applicationContext: ApplicationContext,
     configurer: ServerCodecConfigurer
-) : org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler(
+) : AbstractErrorWebExceptionHandler(
     errorAttributes, resources, applicationContext
 ) {
     init {
