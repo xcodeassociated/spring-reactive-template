@@ -69,7 +69,7 @@ abstract class BaseIntegrationTest {
 
         class Initializer : ApplicationContextInitializer<ConfigurableApplicationContext> {
             override fun initialize(applicationContext: ConfigurableApplicationContext) {
-                Companion.dbContainer.start()
+                dbContainer.start()
 
                 TestPropertyValues.of(
                     "spring.data.mongodb.uri=${Companion.dbContainer.connectionString}/${DATABASE_NAME}",
