@@ -75,9 +75,9 @@
             <appender-ref ref="Console"/>
             <appender-ref ref="logstash"/>
         </root>
-        <logger name="com.softeno" level="trace" additivity="false">
-            <appender-ref ref="RollingFile"/>
+        <logger name="com.softeno" level="debug" additivity="false">
             <appender-ref ref="Console"/>
+            <appender-ref ref="RollingFile"/>
             <appender-ref ref="logstash"/>
         </logger>
     </springProfile>

@@ -30,9 +30,9 @@ class ExampleWebFilter : WebFilter {
         val headers = serverWebExchange.request.headers
         val uri = serverWebExchange.request.uri
         val queryParams = serverWebExchange.request.queryParams
-        log.debug("Incoming request uri: $uri")
-        log.debug("Incoming request queryParams: $queryParams")
-        log.debug("Incoming request headers: $headers")
+        log.trace("Incoming request uri: $uri")
+        log.trace("Incoming request queryParams: $queryParams")
+        log.trace("Incoming request headers: $headers")
 
         serverWebExchange.getResponse().getHeaders().add("custom-header", "XD");
         return webFilterChain.filter(serverWebExchange);
