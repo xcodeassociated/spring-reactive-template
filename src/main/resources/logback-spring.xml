@@ -16,6 +16,9 @@
         <root level="info">
             <appender-ref ref="Console"/>
         </root>
+        <logger name="org.springframework.security" level="info" additivity="false">
+            <appender-ref ref="Console"/>
+        </logger>
         <logger name="com.softeno" level="trace" additivity="false">
             <appender-ref ref="Console"/>
         </logger>

@@ -18,4 +18,6 @@ target/
 .sonar/
 .sonarlint/
 
+tunnels/
+
 .DS_Store

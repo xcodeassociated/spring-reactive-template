@@ -48,4 +48,4 @@ docker/monitoring/volumes
 
 http-client.env.json
 
-/.idea/httpRequests/
+src/main/resources/config/env.properties
