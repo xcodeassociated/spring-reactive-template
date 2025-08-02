@@ -49,3 +49,5 @@ docker/monitoring/volumes
 http-client.env.json
 
 src/main/resources/config/env.properties
+
+tunnels/tunnels.conf
