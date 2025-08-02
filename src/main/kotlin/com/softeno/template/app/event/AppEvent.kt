@@ -1,6 +1,7 @@
 package com.softeno.template.app.event
 
 import com.softeno.template.app.kafka.dto.KafkaMessage
+import com.softeno.template.app.user.service.UserUpdateEmitter
 import com.softeno.template.sample.http.internal.serverevents.Event
 import com.softeno.template.sample.http.internal.serverevents.UserNotificationService
 import com.softeno.template.sample.kafka.ReactiveKafkaSampleProducer
@@ -20,6 +21,7 @@ data class AppEvent(val source: String, val traceId: String? = null, val spanId:
 @Component
 class SampleApplicationEventPublisher(
     private val reactiveMessageService: ReactiveMessageService,
+    private val userUpdateEmitter: UserUpdateEmitter,
     private val reactiveKafkaProducer: ReactiveKafkaSampleProducer,
     private val userNotificationService: UserNotificationService,
 ) : ApplicationListener<AppEvent> {
@@ -35,6 +37,7 @@ class SampleApplicationEventPublisher(
 
         log.info("[event handler]: Received event: $event")
         reactiveMessageService.broadcast(event.toMessage())
+        userUpdateEmitter.broadcast(event.toMessage())
 
         reactiveKafkaProducer.send(event.toKafkaMessage())
 

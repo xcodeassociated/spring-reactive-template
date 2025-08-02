@@ -1,5 +1,6 @@
 package com.softeno.template.app.user.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.softeno.template.app.common.ErrorFactory
 import com.softeno.template.app.common.PrincipalHandler
 import com.softeno.template.app.common.getPageRequest
@@ -16,6 +17,8 @@ import com.softeno.template.app.user.db.UserCoroutineRepository
 import com.softeno.template.app.user.db.UserDocument
 import com.softeno.template.app.user.mapper.toDocument
 import com.softeno.template.app.user.mapper.toDomain
+import com.softeno.template.sample.websocket.Message
+import com.softeno.template.sample.websocket.toJson
 import io.micrometer.tracing.Tracer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
@@ -26,9 +29,15 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.logging.LogFactory
 import org.slf4j.MDC
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.http.codec.ServerSentEvent
+import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
+import reactor.util.concurrent.Queues
 import java.security.Principal
+import java.time.Duration
 
 
 @Service
@@ -148,4 +157,72 @@ class UserDocumentService(
         }
         return@withContext userCoroutineRepository.deleteById(id)
     }
+}
+
+@Component
+class UserUpdateEmitter(
+    private val objectMapper: ObjectMapper,
+) {
+    private val sink: Sinks.Many<ServerSentEvent<String>> = Sinks.many().multicast().onBackpressureBuffer(Queues.SMALL_BUFFER_SIZE, false)
+    private val log = LogFactory.getLog(javaClass)
+
+    fun getSink(): Flux<ServerSentEvent<String>> {
+        val heartbeatFlux = Flux.interval(Duration.ofSeconds(10))
+            .map {
+                ServerSentEvent.builder<String>()
+                    .event("heartbeat")
+                    .data(Message(from = "SYSTEM", to = "ALL", content = "ping").toJson(objectMapper))
+                    .build()
+            }.doOnError { error -> log.error("Heartbeat error", error) }
+
+
+        val events = sink.asFlux()
+            .doOnSubscribe { log.info("New SSE client subscribed") }
+            .doOnCancel { log.info("SSE client disconnected") }
+            .doOnTerminate { log.info("SSE client terminated") }
+            .doOnError { error -> log.error("Event stream error", error) }
+
+
+        return Flux.merge(heartbeatFlux, events)
+            .doOnCancel { log.info("Canceling SSE stream") }
+            .doOnTerminate { log.info("Terminating SSE stream") }
+            .onErrorResume { error ->
+                log.error("SSE stream error, sending error event", error)
+                Mono.just(
+                    ServerSentEvent.builder<String>()
+                        .event("error")
+                        .data(Message(from = "SYSTEM", to = "ALL", content = "Connection error: ${error.message}").toJson(objectMapper))
+                        .build()
+                )
+            }
+    }
+
+    fun broadcast(message: Message): Boolean =
+        try {
+            val payload = message.toJson(objectMapper)
+            val sse = ServerSentEvent.builder(payload).event("update").build()
+            val result = sink.tryEmitNext(sse)
+
+            when (result) {
+                Sinks.EmitResult.OK -> {
+                    log.debug("Message broadcasted successfully: ${message.content}")
+                    true
+                }
+                Sinks.EmitResult.FAIL_CANCELLED -> {
+                    log.warn("Failed to broadcast message - emitter cancelled")
+                    false
+                }
+                Sinks.EmitResult.FAIL_OVERFLOW -> {
+                    log.warn("Failed to broadcast message - buffer overflow")
+                    false
+                }
+                else -> {
+                    log.error("Failed to broadcast message: $result")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            log.error("Error broadcasting message", e)
+            false
+        }
 }

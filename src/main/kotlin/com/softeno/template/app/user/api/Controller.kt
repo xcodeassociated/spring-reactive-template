@@ -6,11 +6,15 @@ import com.softeno.template.app.permission.api.PermissionDto
 import com.softeno.template.app.user.UserModifyCommand
 import com.softeno.template.app.user.mapper.toDto
 import com.softeno.template.app.user.service.UserService
+import com.softeno.template.app.user.service.UserUpdateEmitter
 import io.micrometer.tracing.Tracer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.apache.commons.logging.LogFactory
 import org.slf4j.MDC
+import org.springframework.http.MediaType
+import org.springframework.http.codec.ServerSentEvent
+import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Component
 import org.springframework.validation.annotation.Validated
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.security.Principal
 import java.time.LocalDateTime
@@ -88,7 +93,23 @@ class CoroutineUserController(
 
     @GetMapping("/usersCount")
     suspend fun getUserSize(): Long = userService.size()
+}
 
+@RestController
+@RequestMapping("/update/")
+@Validated
+class UpdateController(
+    val updateEmitter: UserUpdateEmitter
+) {
+    @GetMapping("/user", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+    fun getUserUpdate(response: ServerHttpResponse): Flux<ServerSentEvent<String>> {
+        response.headers.apply {
+            set("Cache-Control", "no-cache, no-store, must-revalidate")
+            set("Connection", "keep-alive")
+            set("X-Accel-Buffering", "no")
+        }
+        return updateEmitter.getSink()
+    }
 }
 
 data class UserDto(

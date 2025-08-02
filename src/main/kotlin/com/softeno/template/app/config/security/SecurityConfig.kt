@@ -100,7 +100,9 @@ class SecurityConfig {
                     "/webjars/**",
                     "/swagger-resources/**",
                     "/swagger-ui/**",
-                    "/v3/api-docs/**"
+                    "/v3/api-docs/**",
+                    // todo: make this endpoint secure
+                    "/update/**"
                 )
                     .permitAll()
                     .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**", "/graphql/**", "/external/**").hasAuthority("ROLE_ADMIN")
