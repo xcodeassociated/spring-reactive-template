@@ -78,7 +78,7 @@
             <appender-ref ref="Console"/>
             <appender-ref ref="logstash"/>
         </root>
-        <logger name="com.softeno" level="debug" additivity="false">
+        <logger name="com.softeno" level="info" additivity="false">
             <appender-ref ref="Console"/>
             <appender-ref ref="RollingFile"/>
             <appender-ref ref="logstash"/>

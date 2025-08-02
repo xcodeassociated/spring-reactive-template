@@ -3,6 +3,7 @@ package com.softeno.template.sample.scheduled
 import com.softeno.template.sample.http.internal.async.AsyncService
 import org.apache.commons.logging.LogFactory
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Profile
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -10,6 +11,11 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 @Profile(value = ["!integration"])
+@ConditionalOnProperty(
+    name = ["com.softeno.scheduled-tasks"],
+    havingValue = "true",
+    matchIfMissing = false
+)
 @Service
 class ScheduledService(
     @Qualifier(value = "scheduledExecutor") private val executor: Executor,
@@ -33,7 +39,6 @@ class ScheduledService(
 
     }
 
-    // cron: every 10m
     @Scheduled(cron = "0 * */12 * * *")
     fun periodicTaskCron() {
         log.info("[scheduled]: periodic task cron start")
