@@ -1,4 +1,7 @@
 ###
 GET {{host}}/update/user
 Content-Type: text/event-stream
-#Authorization: Bearer {{oauthToken}}
+
+###
+GET {{host}}/update/user/reactive
+Content-Type: text/event-stream

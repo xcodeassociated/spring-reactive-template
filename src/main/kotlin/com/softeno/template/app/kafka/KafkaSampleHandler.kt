@@ -1,13 +1,17 @@
-package com.softeno.template.sample.kafka
+package com.softeno.template.app.kafka
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.softeno.template.app.kafka.config.KafkaApplicationProperties
-import com.softeno.template.app.kafka.dto.KafkaMessage
-import io.micrometer.observation.ObservationRegistry
+import com.softeno.template.app.user.notification.CoroutineUserUpdateEmitter
+import com.softeno.template.app.user.notification.ReactiveUserUpdateEmitter
+import com.softeno.template.sample.websocket.Message
+import com.softeno.template.sample.websocket.ReactiveMessageService
 import io.micrometer.tracing.Span
 import io.micrometer.tracing.Tracer
+import kotlinx.coroutines.DelicateCoroutinesApi
 import org.apache.commons.lang3.RandomUtils
 import org.apache.commons.logging.LogFactory
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -18,20 +22,25 @@ import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
 import org.springframework.stereotype.Controller
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
-import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderResult
 
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class KafkaMessage(val content: String, val traceId: String? = null, val spanId: String? = null)
+
+fun KafkaMessage.toMessage() = Message(from = "SYSTEM", to = "ALL", content = this.content)
 
 @Controller
 class ReactiveKafkaSampleController(
     @Qualifier(value = "kafkaSampleConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
     private val objectMapper: ObjectMapper,
     private val tracer: Tracer,
-    private val observationRegistry: ObservationRegistry,
-    @Qualifier(value = "kafkaSampleOptions") private val kafkaReceiverOptions: ReceiverOptions<String, JsonNode>
+    private val reactiveMessageService: ReactiveMessageService,
+    private val reactiveUserUpdateEmitter: ReactiveUserUpdateEmitter,
+    private val userUpdateEmitter: CoroutineUserUpdateEmitter,
 ) : CommandLineRunner {
     private val log = LogFactory.getLog(javaClass)
 
+    @OptIn(DelicateCoroutinesApi::class)
     private fun consumeKafkaMessage(): Flux<JsonNode> {
         return reactiveKafkaConsumerTemplate
             .receiveAutoAck()
@@ -56,7 +65,9 @@ class ReactiveKafkaSampleController(
                     val span = tracer.nextSpan().name("kafka-consumer")
                     tracer.withSpan(span.start()).use {
                         log.info("[kafka] rx sample: $kafkaMessage")
-                        // additional processing ...
+                        reactiveMessageService.broadcast(kafkaMessage.toMessage())
+                        reactiveUserUpdateEmitter.broadcast(kafkaMessage.toMessage())
+                        userUpdateEmitter.broadcast(kafkaMessage.toMessage())
                     }
                     span.end()
                 }

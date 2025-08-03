@@ -1,9 +1,9 @@
 package com.softeno.template.app.permission.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.softeno.template.app.permission.Permission
 import com.softeno.template.app.permission.PermissionModifyCommand
-import com.softeno.template.app.permission.mapper.toDto
-import com.softeno.template.app.permission.service.PermissionService
+import com.softeno.template.app.permission.PermissionService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.validation.annotation.Validated
@@ -56,4 +56,15 @@ data class PermissionDto(
     val createdDate: LocalDateTime?,
     val modifiedBy: String?,
     val modifiedDate: LocalDateTime?
+)
+
+fun Permission.toDto(): PermissionDto = PermissionDto(
+    id = this.id,
+    name = this.name,
+    description = this.description,
+    version = this.base?.version,
+    createdBy = this.base?.createdBy,
+    createdDate = this.base?.createdDate,
+    modifiedBy = this.base?.modifiedBy,
+    modifiedDate = this.base?.modifiedDate
 )

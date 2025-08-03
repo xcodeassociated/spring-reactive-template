@@ -1,7 +1,7 @@
 package com.softeno.template.app.permission.api
 
 import com.softeno.template.app.permission.PermissionModifyCommand
-import com.softeno.template.app.permission.service.PermissionService
+import com.softeno.template.app.permission.PermissionService
 import graphql.ErrorType
 import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder

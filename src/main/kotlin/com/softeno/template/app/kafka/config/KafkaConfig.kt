@@ -1,7 +1,7 @@
 package com.softeno.template.app.kafka.config
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.softeno.template.app.kafka.dto.KafkaMessage
+import com.softeno.template.app.kafka.KafkaMessage
 import io.micrometer.observation.ObservationRegistry
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties

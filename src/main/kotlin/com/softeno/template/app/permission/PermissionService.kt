@@ -1,15 +1,12 @@
-package com.softeno.template.app.permission.service
+package com.softeno.template.app.permission
 
 import com.softeno.template.app.common.ErrorFactory
 import com.softeno.template.app.common.getPageRequest
-import com.softeno.template.app.permission.Permission
-import com.softeno.template.app.permission.PermissionModifyCommand
 import com.softeno.template.app.permission.api.reactive.PermissionsReactiveMongoTemplate
 import com.softeno.template.app.permission.db.PermissionCoroutineRepository
+import com.softeno.template.app.permission.db.PermissionDocument
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
 import com.softeno.template.app.permission.db.QPermissionDocument
-import com.softeno.template.app.permission.mapper.toDocument
-import com.softeno.template.app.permission.mapper.toDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -20,6 +17,7 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.logging.LogFactory
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
+
 
 @Service
 class PermissionService(
@@ -47,7 +45,7 @@ class PermissionService(
             val predicate = permission.id.eq(id)
             return@withContext permissionsReactiveRepository.findOne(predicate)
                 .asFlow().firstOrNull()?.toDomain() ?: throw ErrorFactory.errorPermissionNotFound(id)
-    }
+        }
 
     suspend fun update(id: String, input: PermissionModifyCommand): Permission =
         withContext(MDCContext()) {
@@ -66,3 +64,26 @@ class PermissionService(
         permissionCoroutineRepository.deleteById(id)
     }
 }
+
+fun PermissionDocument.toDomain() =
+    Permission(id = this.id, base = this, name = this.name, description = this.description)
+
+fun Permission.toDocument() = if (this.base != null) {
+    this.base as PermissionDocument
+} else {
+    PermissionDocument(
+        id = this.id,
+        createdByUser = null,
+        createdDate = null,
+        lastModifiedDate = null,
+        modifiedByUser = null,
+        version = null,
+        name = this.name,
+        description = this.description
+    )
+}
+
+fun PermissionModifyCommand.toDocument() = PermissionDocument(
+    id = null, name = this.name, description = this.description,
+    createdDate = null, createdByUser = null, lastModifiedDate = null, modifiedByUser = null, version = this.version
+)

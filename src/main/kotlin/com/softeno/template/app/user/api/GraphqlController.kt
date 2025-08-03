@@ -1,10 +1,10 @@
 package com.softeno.template.app.user.api
 
 import com.softeno.template.app.permission.db.PermissionDocument
+import com.softeno.template.app.user.UserDocumentService
 import com.softeno.template.app.user.UserModifyCommand
+import com.softeno.template.app.user.UserService
 import com.softeno.template.app.user.db.UserDocument
-import com.softeno.template.app.user.service.UserDocumentService
-import com.softeno.template.app.user.service.UserService
 import com.softeno.template.sample.http.external.config.ExternalClientConfig
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

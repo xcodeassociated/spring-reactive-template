@@ -10,7 +10,7 @@ import java.security.Principal
 interface PrincipalHandler {
     suspend fun showPrincipal(log: Log, monoPrincipal: Mono<Principal>){
         val principal = monoPrincipal.awaitSingleOrNull()
-        log.info("principal: $principal, name: ${principal?.name}")
+        log.debug("principal: $principal, name: ${principal?.name}")
         val authentication = ReactiveSecurityContextHolder.getContext().map { it.authentication }.awaitSingleOrNull()
         if (authentication != null) {
             val token = (authentication as JwtAuthenticationToken).token

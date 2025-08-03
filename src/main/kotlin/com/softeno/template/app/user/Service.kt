@@ -1,24 +1,17 @@
-package com.softeno.template.app.user.service
+package com.softeno.template.app.user
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.softeno.template.app.common.ErrorFactory
 import com.softeno.template.app.common.PrincipalHandler
 import com.softeno.template.app.common.getPageRequest
-import com.softeno.template.app.event.AppEvent
+import com.softeno.template.app.event.UserAction
 import com.softeno.template.app.permission.Permission
+import com.softeno.template.app.permission.PermissionService
 import com.softeno.template.app.permission.db.PermissionDocument
-import com.softeno.template.app.permission.mapper.toDocument
-import com.softeno.template.app.permission.mapper.toDomain
-import com.softeno.template.app.permission.service.PermissionService
-import com.softeno.template.app.user.User
-import com.softeno.template.app.user.UserModifyCommand
+import com.softeno.template.app.permission.toDocument
+import com.softeno.template.app.permission.toDomain
 import com.softeno.template.app.user.api.VersionMissingException
 import com.softeno.template.app.user.db.UserCoroutineRepository
 import com.softeno.template.app.user.db.UserDocument
-import com.softeno.template.app.user.mapper.toDocument
-import com.softeno.template.app.user.mapper.toDomain
-import com.softeno.template.sample.websocket.Message
-import com.softeno.template.sample.websocket.toJson
 import io.micrometer.tracing.Tracer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
@@ -29,15 +22,9 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.logging.LogFactory
 import org.slf4j.MDC
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.http.codec.ServerSentEvent
-import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks
-import reactor.util.concurrent.Queues
 import java.security.Principal
-import java.time.Duration
 
 
 @Service
@@ -90,7 +77,7 @@ class UserService(
         log.info("User created: $user")
 
         applicationEventPublisher.publishEvent(
-            AppEvent("USER_CREATED: ${user.id}", traceId = MDC.get("traceId"), spanId = MDC.get("spanId"))
+            UserAction("USER_CREATED: ${user.id}", traceId = MDC.get("traceId"), spanId = MDC.get("spanId"))
         )
         return@withContext user
     }
@@ -159,70 +146,21 @@ class UserDocumentService(
     }
 }
 
-@Component
-class UserUpdateEmitter(
-    private val objectMapper: ObjectMapper,
-) {
-    private val sink: Sinks.Many<ServerSentEvent<String>> = Sinks.many().multicast().onBackpressureBuffer(Queues.SMALL_BUFFER_SIZE, false)
-    private val log = LogFactory.getLog(javaClass)
+fun UserDocument.toDomain(permissions: List<Permission>?) =
+    User(id = this.id, base = this, name = this.name, email = this.email, permissions = permissions)
 
-    fun getSink(): Flux<ServerSentEvent<String>> {
-        val heartbeatFlux = Flux.interval(Duration.ofSeconds(10))
-            .map {
-                ServerSentEvent.builder<String>()
-                    .event("heartbeat")
-                    .data(Message(from = "SYSTEM", to = "ALL", content = "ping").toJson(objectMapper))
-                    .build()
-            }.doOnError { error -> log.error("Heartbeat error", error) }
-
-
-        val events = sink.asFlux()
-            .doOnSubscribe { log.info("New SSE client subscribed") }
-            .doOnCancel { log.info("SSE client disconnected") }
-            .doOnTerminate { log.info("SSE client terminated") }
-            .doOnError { error -> log.error("Event stream error", error) }
-
-
-        return Flux.merge(heartbeatFlux, events)
-            .doOnCancel { log.info("Canceling SSE stream") }
-            .doOnTerminate { log.info("Terminating SSE stream") }
-            .onErrorResume { error ->
-                log.error("SSE stream error, sending error event", error)
-                Mono.just(
-                    ServerSentEvent.builder<String>()
-                        .event("error")
-                        .data(Message(from = "SYSTEM", to = "ALL", content = "Connection error: ${error.message}").toJson(objectMapper))
-                        .build()
-                )
-            }
-    }
-
-    fun broadcast(message: Message): Boolean =
-        try {
-            val payload = message.toJson(objectMapper)
-            val sse = ServerSentEvent.builder(payload).event("update").build()
-            val result = sink.tryEmitNext(sse)
-
-            when (result) {
-                Sinks.EmitResult.OK -> {
-                    log.debug("Message broadcasted successfully: ${message.content}")
-                    true
-                }
-                Sinks.EmitResult.FAIL_CANCELLED -> {
-                    log.warn("Failed to broadcast message - emitter cancelled")
-                    false
-                }
-                Sinks.EmitResult.FAIL_OVERFLOW -> {
-                    log.warn("Failed to broadcast message - buffer overflow")
-                    false
-                }
-                else -> {
-                    log.error("Failed to broadcast message: $result")
-                    false
-                }
-            }
-        } catch (e: Exception) {
-            log.error("Error broadcasting message", e)
-            false
-        }
+fun User.toDocument() = if (this.base != null) {
+    this.base as UserDocument
+} else {
+    UserDocument(
+        id = this.id,
+        name = this.name,
+        email = this.email,
+        permissions = this.permissions?.map { it.id!! }?.toSet() ?: setOf(),
+        createdDate = null,
+        createdByUser = null,
+        modifiedByUser = null,
+        lastModifiedDate = null,
+        version = null
+    )
 }

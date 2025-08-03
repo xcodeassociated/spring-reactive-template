@@ -4,12 +4,12 @@ import com.softeno.template.app.common.getPageRequest
 import com.softeno.template.app.permission.PermissionModifyCommand
 import com.softeno.template.app.permission.api.PermissionDto
 import com.softeno.template.app.permission.api.PermissionNotFoundException
+import com.softeno.template.app.permission.api.toDto
 import com.softeno.template.app.permission.db.PermissionDocument
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
 import com.softeno.template.app.permission.db.QPermissionDocument
-import com.softeno.template.app.permission.mapper.toDocument
-import com.softeno.template.app.permission.mapper.toDomain
-import com.softeno.template.app.permission.mapper.toDto
+import com.softeno.template.app.permission.toDocument
+import com.softeno.template.app.permission.toDomain
 import com.softeno.template.app.user.api.UserNotFoundException
 import org.springframework.data.mongodb.core.FindAndModifyOptions
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate
