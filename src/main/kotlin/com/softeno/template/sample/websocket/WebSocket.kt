@@ -16,6 +16,8 @@ import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAd
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.jvm.java
 
 
 @Configuration
@@ -73,11 +75,20 @@ class WebSocketConfig(private val reactiveMessageService: ReactiveMessageService
                     log.info("ws: [chat] disconnect chat session: $sessionId with sig: ${sig.name}")
                     session.close()
                     reactiveMessageService.remove(sessionId)
-                }
-                .doOnNext { wsMessage ->
-                    val message = objectMapper.readValue(wsMessage.payloadAsText, Message::class.java)
-                    log.info("ws: [chat] rx: $message")
-                    reactiveMessageService.send(message, message.to)
+                }.doOnNext { wsMessage ->
+                    try {
+                        val message = objectMapper.readValue(wsMessage.payloadAsText, Message::class.java)
+                        log.info("ws: [chat] rx: $message")
+                        reactiveMessageService.send(message, message.to)
+                    } catch (e: Exception) {
+                        log.error("ws: [chat] failed to parse message: ${wsMessage.payloadAsText}", e)
+                        // optionally send error message back to client
+                    }
+                }.doOnError { error ->
+                    log.error("ws: [chat] error in session: $sessionId", error)
+                    // handle the error
+                }.onErrorContinue { error, _ ->
+                    log.warn("ws: [chat] continuing after error: ${error.message}")
                 }
 
             session.send(messages).and(reading)
@@ -85,17 +96,20 @@ class WebSocketConfig(private val reactiveMessageService: ReactiveMessageService
     }
 }
 
-data class Message(val from: String, val to: String, val content: String)
-
-fun Message.toJson(objectMapper: ObjectMapper): String = objectMapper.writeValueAsString(this)
-
 @Service
 class ReactiveMessageService(
     private val objectMapper: ObjectMapper
 ) {
-    private val sinks: MutableMap<String, Many<String>> = mutableMapOf()
+    private val log = LogFactory.getLog(javaClass)
+
+    private val sinks: MutableMap<String, Many<String>> = ConcurrentHashMap()
 
     fun send(next: Message, session: String): Message {
+        if (!sinks.containsKey(session)) {
+            log.warn("ws: [chat] attempting to send to non-existent session: $session")
+            return next
+        }
+
         val payload = next.toJson(objectMapper)
         getSink(session).emitNext(payload, Sinks.EmitFailureHandler.FAIL_FAST)
         return next
@@ -121,6 +135,20 @@ class ReactiveMessageService(
         return sinks[session]!!
     }
 
-    fun remove(session: String): Many<String>? = sinks.remove(session)
+    fun remove(session: String): Many<String>? {
+        return sinks.remove(session)?.also { sink ->
+            sink.tryEmitComplete()
+        }
+    }
 
 }
+
+data class Message(val from: String, val to: String, val content: String) {
+    init {
+        require(from.isNotBlank()) { "Message 'from' cannot be blank" }
+        require(to.isNotBlank()) { "Message 'to' cannot be blank" }
+        require(content.isNotBlank()) { "Message 'content' cannot be blank" }
+    }
+}
+
+fun Message.toJson(objectMapper: ObjectMapper): String = objectMapper.writeValueAsString(this)

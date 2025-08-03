@@ -128,9 +128,7 @@ class CoroutineUserUpdateEmitter(
 
     fun getFlow(): Flow<ServerSentEvent<String>> = flow {
         log.info("[coroutine] New SSE client subscribed")
-
         val heartbeatFlow = createHeartbeatFlow()
-        val eventFlow = events
 
         merge(heartbeatFlow, events)
             .collect { event -> emit(event) }
