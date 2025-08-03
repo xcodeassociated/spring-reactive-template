@@ -123,6 +123,19 @@ start_tunnel() {
     fi
 }
 
+# Function to get SSH process ID for a tunnel
+get_ssh_pid() {
+    local name=$1
+    local config=$(get_tunnel_config "$name")
+    local local_port=$(echo "$config" | cut -d: -f2)
+    local remote_host=$(echo "$config" | cut -d: -f3)
+    local remote_port=$(echo "$config" | cut -d: -f4)
+    local ssh_server=$(echo "$config" | cut -d: -f5)
+
+    # Look for SSH process with our specific tunnel parameters
+    ps aux | grep "ssh -L ${local_port}:${remote_host}:${remote_port} ${ssh_server}" | grep -v grep | awk '{print $2}'
+}
+
 # Function to stop a single tunnel
 stop_tunnel() {
     local name=$1
@@ -132,21 +145,67 @@ stop_tunnel() {
         return 1
     fi
 
-    if ! screen -list | grep -q "ssh_tunnel_${name}"; then
+    local screen_running=false
+    local ssh_pids=""
+
+    # Check if screen session exists
+    if screen -list | grep -q "ssh_tunnel_${name}"; then
+        screen_running=true
+    fi
+
+    # Get SSH process IDs
+    ssh_pids=$(get_ssh_pid "$name")
+
+    if [ "$screen_running" = false ] && [ -z "$ssh_pids" ]; then
         echo -e "${YELLOW}Tunnel '${name}' is not running${NC}"
         return 1
     fi
 
     echo -e "${BLUE}Stopping tunnel: ${name}${NC}"
-    screen -S "ssh_tunnel_${name}" -X quit
+
+    # First, try to quit the screen session gracefully
+    if [ "$screen_running" = true ]; then
+        echo -e "${BLUE}Stopping screen session...${NC}"
+        screen -S "ssh_tunnel_${name}" -X stuff "^C"
+        sleep 1
+        screen -S "ssh_tunnel_${name}" -X quit
+        sleep 1
+    fi
+
+    # Kill any remaining SSH processes
+    if [ -n "$ssh_pids" ]; then
+        echo -e "${BLUE}Terminating SSH processes...${NC}"
+        for pid in $ssh_pids; do
+            if kill -0 "$pid" 2>/dev/null; then
+                echo -e "${BLUE}Killing SSH process $pid${NC}"
+                kill "$pid" 2>/dev/null
+                sleep 1
+                # If still running, force kill
+                if kill -0 "$pid" 2>/dev/null; then
+                    kill -9 "$pid" 2>/dev/null
+                fi
+            fi
+        done
+    fi
 
     sleep 1
 
-    if ! screen -list | grep -q "ssh_tunnel_${name}"; then
+    # Verify tunnel is stopped
+    local still_running=false
+    if screen -list | grep -q "ssh_tunnel_${name}"; then
+        still_running=true
+    fi
+
+    ssh_pids=$(get_ssh_pid "$name")
+    if [ -n "$ssh_pids" ]; then
+        still_running=true
+    fi
+
+    if [ "$still_running" = false ]; then
         echo -e "${GREEN}✓ Tunnel '${name}' stopped successfully${NC}"
         return 0
     else
-        echo -e "${RED}✗ Failed to stop tunnel '${name}'${NC}"
+        echo -e "${RED}✗ Failed to completely stop tunnel '${name}'${NC}"
         return 1
     fi
 }
@@ -158,8 +217,24 @@ show_status() {
 
     for config in "${TUNNEL_CONFIGS[@]}"; do
         local name=$(echo "$config" | cut -d: -f1)
+        local screen_running=false
+        local ssh_running=false
+
+        # Check screen session
         if screen -list | grep -q "ssh_tunnel_${name}"; then
+            screen_running=true
+        fi
+
+        # Check SSH process
+        local ssh_pids=$(get_ssh_pid "$name")
+        if [ -n "$ssh_pids" ]; then
+            ssh_running=true
+        fi
+
+        if [ "$screen_running" = true ] && [ "$ssh_running" = true ]; then
             echo -e "${name}: ${GREEN}RUNNING${NC}"
+        elif [ "$screen_running" = true ] || [ "$ssh_running" = true ]; then
+            echo -e "${name}: ${YELLOW}PARTIAL${NC} (screen: $screen_running, ssh: $ssh_running)"
         else
             echo -e "${name}: ${RED}STOPPED${NC}"
         fi
@@ -168,6 +243,10 @@ show_status() {
     echo ""
     echo -e "${BLUE}Active screen sessions:${NC}"
     screen -list | grep "ssh_tunnel_" || echo "None"
+
+    echo ""
+    echo -e "${BLUE}Active SSH tunnel processes:${NC}"
+    ps aux | grep "ssh -L" | grep -v grep || echo "None"
 }
 
 # Function to start all tunnels
