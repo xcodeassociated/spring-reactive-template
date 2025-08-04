@@ -9,6 +9,7 @@ import com.softeno.template.app.user.notification.CoroutineUserUpdateEmitter
 import com.softeno.template.app.user.notification.ReactiveUserUpdateEmitter
 import com.softeno.template.sample.websocket.Message
 import com.softeno.template.sample.websocket.ReactiveMessageService
+import com.softeno.template.sample.websocket.WsMessageService
 import io.micrometer.tracing.Span
 import io.micrometer.tracing.Tracer
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -34,7 +35,7 @@ class ReactiveKafkaSampleController(
     @Qualifier(value = "kafkaSampleConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
     private val objectMapper: ObjectMapper,
     private val tracer: Tracer,
-    private val reactiveMessageService: ReactiveMessageService,
+    private val wsMessageService: WsMessageService,
     private val reactiveUserUpdateEmitter: ReactiveUserUpdateEmitter,
     private val userUpdateEmitter: CoroutineUserUpdateEmitter,
 ) : CommandLineRunner {
@@ -65,7 +66,7 @@ class ReactiveKafkaSampleController(
                     val span = tracer.nextSpan().name("kafka-consumer")
                     tracer.withSpan(span.start()).use {
                         log.info("[kafka] rx sample: $kafkaMessage")
-                        reactiveMessageService.broadcast(kafkaMessage.toMessage())
+                        wsMessageService.broadcast(kafkaMessage.toMessage())
                         reactiveUserUpdateEmitter.broadcast(kafkaMessage.toMessage())
                         userUpdateEmitter.broadcast(kafkaMessage.toMessage())
                     }

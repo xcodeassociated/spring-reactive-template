@@ -15,7 +15,7 @@ import reactor.core.publisher.Hooks
 
 @SpringBootApplication
 @EnableConfigurationProperties
-@ConfigurationPropertiesScan("com.softeno")
+@ConfigurationPropertiesScan
 class SoftenoReactiveMongoApp
 
 fun main(args: Array<String>) {
