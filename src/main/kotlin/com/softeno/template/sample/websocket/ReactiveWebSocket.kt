@@ -117,7 +117,7 @@ class WebSocketConfig(
     }
 }
 
-interface WsMessageService {
+interface WebSocketNotificationSender {
     fun broadcast(message: Message): Message
 }
 
@@ -130,7 +130,7 @@ interface WsMessageService {
 class ReactiveMessageService(
     private val objectMapper: ObjectMapper,
     private val config: ChatConfigProperties
-) : WsMessageService {
+) : WebSocketNotificationSender {
     private val log = LogFactory.getLog(javaClass)
 
     private val sinks: MutableMap<WebSocketSession, Many<String>> = ConcurrentHashMap()

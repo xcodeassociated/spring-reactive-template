@@ -83,11 +83,11 @@ class CoroutineWebSocketConfig(
         }
 
         // Register session
-        coroutineMessageService.registerSession(session.id)
+        coroutineMessageService.registerSession(session)
 
         // Send initial messages
-        coroutineMessageService.send(Message("SYSTEM", session.id, "HANDSHAKE"), session.id)
-        coroutineMessageService.send(Message("SYSTEM", session.id, userId), session.id)
+        coroutineMessageService.send(Message("SYSTEM", session.id, "HANDSHAKE"), session)
+        coroutineMessageService.send(Message("SYSTEM", session.id, userId), session)
 
         // Start concurrent coroutines for sending and receiving
         coroutineScope {
@@ -136,7 +136,7 @@ class CoroutineWebSocketConfig(
 
         // Cleanup
         log.info("ws: [chat] disconnect chat session: ${session.id}")
-        coroutineMessageService.unregisterSession(session.id)
+        coroutineMessageService.unregisterSession(session)
     }
 
     private suspend fun handleWebSocketSessionError(context: CoroutineContext, throwable: Throwable, session: WebSocketSession) =
@@ -148,8 +148,8 @@ class CoroutineWebSocketConfig(
             context.cancel()
     }
 
-    private suspend fun closeSession(session: WebSocketSession) {
-        coroutineMessageService.unregisterSession(session.id)
+    private suspend fun closeSession(session: WebSocketSession) = withContext(Dispatchers.IO + MDCContext()) {
+        coroutineMessageService.unregisterSession(session)
         session.close().awaitSingleOrNull()
     }
 
@@ -157,7 +157,7 @@ class CoroutineWebSocketConfig(
         session: WebSocketSession,
         objectMapper: ObjectMapper
     ) = withContext(Dispatchers.IO + MDCContext()) {
-        coroutineMessageService.getMessageFlow(session.id).collect { message ->
+        coroutineMessageService.getMessageFlow(session).collect { message ->
             val json = message.toJson(objectMapper)
             log.info("ws: [chat] tx: $json")
             session.send(Mono.just(session.textMessage(json))).awaitSingleOrNull()
@@ -183,7 +183,7 @@ class CoroutineWebSocketConfig(
                             when {
                                 message.content == "pong" && message.to == "SYSTEM" -> {
                                     log.debug("ws: [chat] received pong from session: ${session.id}")
-                                    coroutineMessageService.updateLastPong(session.id)
+                                    coroutineMessageService.updateLastPong(session)
                                 }
                                 else -> {
                                     coroutineMessageService.routeMessage(message)
@@ -205,10 +205,7 @@ class CoroutineWebSocketConfig(
         while (currentCoroutineContext().isActive) {
             delay(config.heartbeatIntervalSeconds.toLong().seconds)
             log.debug("ws: [chat] sending heartbeat to session: ${session.id}")
-            coroutineMessageService.send(
-                Message("SYSTEM", session.id, "ping"),
-                session.id
-            )
+            coroutineMessageService.send(Message("SYSTEM", session.id, "ping"), session)
         }
     }
 }
@@ -221,11 +218,11 @@ class CoroutineWebSocketConfig(
 @Service
 class CoroutineMessageService(
     private val config: ChatConfigProperties
-) : WsMessageService {
+) : WebSocketNotificationSender {
     private val log = LogFactory.getLog(javaClass)
 
-    private val messageChannels = ConcurrentHashMap<String, Channel<Message>>()
-    private val lastPongTimes = ConcurrentHashMap<String, Instant>()
+    private val messageChannels = ConcurrentHashMap<WebSocketSession, Channel<Message>>()
+    private val lastPongTimes = ConcurrentHashMap<WebSocketSession, Instant>()
 
     // Lazy heartbeat monitoring
     @OptIn(DelicateCoroutinesApi::class)
@@ -238,28 +235,28 @@ class CoroutineMessageService(
         }
     }
 
-    suspend fun registerSession(sessionId: String) = withContext(Dispatchers.IO + MDCContext()) {
-        messageChannels[sessionId] = Channel(capacity = Channel.UNLIMITED)
-        lastPongTimes[sessionId] = Instant.now()
+    suspend fun registerSession(session: WebSocketSession) = withContext(Dispatchers.IO + MDCContext()) {
+        messageChannels[session] = Channel(capacity = Channel.UNLIMITED)
+        lastPongTimes[session] = Instant.now()
 
         // Start heartbeat monitoring when first session connects
         if (config.staleCheck) {
             heartbeatMonitoring
         }
 
-        log.info("ws: [chat] registered session: $sessionId")
+        log.info("ws: [chat] registered session: ${session.id}")
     }
 
-    fun unregisterSession(sessionId: String) {
-        messageChannels.remove(sessionId)?.close()
-        lastPongTimes.remove(sessionId)
-        log.info("ws: [chat] unregistered session: $sessionId")
+    fun unregisterSession(session: WebSocketSession) {
+        messageChannels.remove(session)?.close()
+        lastPongTimes.remove(session)
+        log.info("ws: [chat] unregistered session: ${session.id}")
     }
 
-    fun send(message: Message, sessionId: String): Message {
-        messageChannels[sessionId]?.trySend(message)?.let { result ->
+    fun send(message: Message, session: WebSocketSession): Message {
+        messageChannels[session]?.trySend(message)?.let { result ->
             if (result.isFailure) {
-                log.warn("ws: [chat] failed to send message to session: $sessionId")
+                log.warn("ws: [chat] failed to send message to session: ${session.id}")
             }
         }
         return message
@@ -276,39 +273,39 @@ class CoroutineMessageService(
         when (message.to) {
             "ALL" -> broadcast(message)
             else -> {
-                // Try to send to specific session first, then to user
-                if (messageChannels.containsKey(message.to)) {
-                    send(message, message.to)
-                } else {
-                   log.error("ws: [chat] failed to send message: $message to session: ${message.to} - unknown session")
-                }
+                val session = getSession(message.to)
+                    ?: throw RuntimeException("ws: [chat] unknown session: ${message.to}")
+                send(message, session)
             }
         }
     }
-
-    fun getMessageFlow(sessionId: String): Flow<Message> {
-        return messageChannels[sessionId]?.receiveAsFlow() ?: emptyFlow()
+    fun getSession(sessionId: String): WebSocketSession? {
+        return messageChannels.keys.firstOrNull { it.id == sessionId }
     }
 
-    fun updateLastPong(sessionId: String) {
-        lastPongTimes[sessionId] = Instant.now()
+    fun getMessageFlow(session: WebSocketSession): Flow<Message> {
+        return messageChannels[session]?.receiveAsFlow() ?: emptyFlow()
+    }
+
+    fun updateLastPong(session: WebSocketSession) {
+        lastPongTimes[session] = Instant.now()
     }
 
     private fun checkStaleConnections() {
         val staleThreshold = Instant.now().minusSeconds(config.staleCheckThresholdSeconds.toLong())
-        val staleSessions = mutableListOf<String>()
+        val staleSessions = mutableListOf<WebSocketSession>()
 
         // First, identify stale sessions without modifying the collection
-        lastPongTimes.forEach { (sessionId, lastPong) ->
+        lastPongTimes.forEach { (session, lastPong) ->
             if (lastPong.isBefore(staleThreshold)) {
-                staleSessions.add(sessionId)
+                staleSessions.add(session)
             }
         }
 
         // Then, clean up stale sessions properly in coroutine context
-        staleSessions.forEach { sessionId ->
-            log.warn("ws: [chat] removing stale connection: $sessionId (last pong: ${lastPongTimes[sessionId]})")
-            unregisterSession(sessionId)
+        staleSessions.forEach { session ->
+            log.warn("ws: [chat] removing stale connection: ${session.id} (last pong: ${lastPongTimes[session]})")
+            unregisterSession(session)
         }
     }
 }
