@@ -29,11 +29,11 @@ class SecurityConfig {
 
     class Jwt2AuthenticationConverter : Converter<Jwt, Collection<GrantedAuthority>> {
         override fun convert(jwt: Jwt): Collection<GrantedAuthority> {
-            val realmAccess = jwt.claims.getOrDefault("realm_access", mapOf<String, Any>()) as Map<String, Any>
-            val realmRoles = (realmAccess["roles"] ?: listOf<String>()) as Collection<String>
+            val realmAccess = jwt.claims.getOrDefault("realm_access", mapOf<String, Any>()) as Map<*, *>
+            val realmRoles = (realmAccess["roles"] ?: listOf<String>()) as Collection<*>
 
             return realmRoles
-                .map { role: String -> SimpleGrantedAuthority(role) }.toList()
+                .map { role -> SimpleGrantedAuthority(role as String) }.toList()
         }
 
     }

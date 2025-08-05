@@ -92,12 +92,12 @@ class CoroutineUserController(
 }
 
 data class UserDto(
-    @JsonProperty("_id")
+    @param:JsonProperty("_id")
     val id: String,
     val name: String,
     val email: String,
-    @JsonProperty("role")
-    @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+    @param:JsonProperty("role")
+    @param:JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
     val permissions: List<PermissionDto>?,
     val version: Long?,
     val createdBy: String?,

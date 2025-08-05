@@ -14,7 +14,7 @@ import reactor.core.publisher.Flux
 
 @Controller
 class ReactiveKafkaKeycloakController(
-    @Qualifier(value = "kafkaKeycloakConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
+    @param:Qualifier(value = "kafkaKeycloakConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
     private val objectMapper: ObjectMapper
 ) : CommandLineRunner {
     private val log = LogFactory.getLog(javaClass)

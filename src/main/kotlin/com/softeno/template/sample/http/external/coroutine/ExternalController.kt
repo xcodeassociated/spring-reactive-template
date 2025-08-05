@@ -18,7 +18,7 @@ class ExternalServiceException(message: String) : RuntimeException(message)
 @RequestMapping("/external")
 @Validated
 class ExternalController(
-    @Qualifier(value = "external") private val webClient: WebClient,
+    @param:Qualifier(value = "external") private val webClient: WebClient,
     private val reactiveCircuitBreakerFactory: ReactiveCircuitBreakerFactory<*, *>,
     private val config: ExternalClientConfig
 ) {

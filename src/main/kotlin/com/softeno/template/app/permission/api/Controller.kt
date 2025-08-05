@@ -47,7 +47,7 @@ class CoroutinePermissionController(
 }
 
 data class PermissionDto(
-    @JsonProperty("_id")
+    @param:JsonProperty("_id")
     val id: String?,
     val name: String,
     val description: String,

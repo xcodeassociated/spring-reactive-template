@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 )
 @Service
 class ScheduledService(
-    @Qualifier(value = "scheduledExecutor") private val executor: Executor,
+    @param:Qualifier(value = "scheduledExecutor") private val executor: Executor,
     private val syncService: AsyncService
 ) {
     private val log = LogFactory.getLog(javaClass)

@@ -13,7 +13,6 @@ data class User(
     val email: String,
     val permissions: List<Permission>?,
 ) {
-    constructor(command: UserModifyCommand) : this(command, null)
     constructor(command: UserModifyCommand, permissions: List<Permission>?)
             : this(id = null, name = command.name, email = command.email, permissions = permissions, base = null)
 }
@@ -21,8 +20,8 @@ data class User(
 data class UserModifyCommand(
     val name: String,
     val email: String,
-    @JsonProperty("role")
-    @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+    @param:JsonProperty("role")
+    @param:JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
     val permissionIds: Set<String>,
     val version: Long?
 )

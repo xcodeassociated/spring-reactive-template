@@ -31,7 +31,7 @@ fun KafkaMessage.toMessage() = Message(from = "SYSTEM", to = "ALL", content = th
 
 @Controller
 class ReactiveKafkaSampleController(
-    @Qualifier(value = "kafkaSampleConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
+    @param:Qualifier(value = "kafkaSampleConsumerTemplate") private val reactiveKafkaConsumerTemplate: ReactiveKafkaConsumerTemplate<String, JsonNode>,
     private val objectMapper: ObjectMapper,
     private val tracer: Tracer,
     private val ws: WebSocketNotificationSender,
@@ -55,7 +55,7 @@ class ReactiveKafkaSampleController(
 
                 // todo: make better observation handling by reactive kafka, currently the zipkin does not show the traces properly
                 val contextWithCustomTraceId = tracer.traceContextBuilder()
-                    .traceId(kafkaMessage.traceId ?: RandomUtils.nextLong().toString())
+                    .traceId(kafkaMessage.traceId ?: RandomUtils.secure().toString())
                     .spanId(tracer.nextSpan().name("kafka-consumer").context().spanId())
                     .parentId(kafkaMessage.spanId ?: (tracer.currentSpan()?.context()?.spanId() ?: Span.NOOP.context().spanId()))
                     .sampled(true)
@@ -85,7 +85,7 @@ class ReactiveKafkaSampleController(
 
 @Service
 class ReactiveKafkaSampleProducer(
-    @Qualifier(value = "kafkaSampleProducerTemplate") private val reactiveKafkaProducerTemplate: ReactiveKafkaProducerTemplate<String, KafkaMessage>,
+    @param:Qualifier(value = "kafkaSampleProducerTemplate") private val reactiveKafkaProducerTemplate: ReactiveKafkaProducerTemplate<String, KafkaMessage>,
     private val props: KafkaApplicationProperties
 ) {
     private val log = LogFactory.getLog(javaClass)
