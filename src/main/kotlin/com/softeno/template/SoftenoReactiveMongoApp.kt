@@ -1,6 +1,5 @@
 package com.softeno.template
 
-import com.softeno.template.playground.CoroutinePlayground
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.event.ApplicationReadyEvent
@@ -41,8 +40,6 @@ class SpringApplicationReadyEventListenerPlayground {
 
     @EventListener
     fun onApplicationReady(event: ApplicationReadyEvent) {
-        logger.info(">> Application Ready")
-        // play around with kotlin coroutines
-        CoroutinePlayground().run()
+        // ...
     }
 }

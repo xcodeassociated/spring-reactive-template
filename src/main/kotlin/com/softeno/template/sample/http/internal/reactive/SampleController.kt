@@ -1,6 +1,5 @@
 package com.softeno.template.sample.http.internal.reactive
 
-import com.softeno.template.sample.http.dto.SampleResponseDto
 import org.apache.commons.logging.LogFactory
 import org.springframework.stereotype.Service
 import org.springframework.validation.annotation.Validated
@@ -53,5 +52,6 @@ class SampleService {
         log.info("[sample-service]: GET id: $id")
         return Mono.empty()
     }
-
 }
+
+data class SampleResponseDto(val data: String)

@@ -77,9 +77,6 @@ dependencies {
 	}
 	kapt group: 'com.querydsl', name: 'querydsl-apt', version: '5.1.0'
 
-	// rsocket
-	implementation 'org.springframework.boot:spring-boot-starter-rsocket'
-
 	// graphql
 	implementation 'org.springframework.boot:spring-boot-starter-graphql'
 	testImplementation 'org.springframework.graphql:spring-graphql-test'
@@ -96,9 +93,6 @@ dependencies {
 	if (osdetector.classifier == "osx-aarch_64") {
 		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.2.3.Final:${osdetector.classifier}")
 	}
-
-	// s3
-	implementation 'io.minio:minio:8.6.0'
 
 	// monitoring
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'

@@ -1,5 +1,4 @@
 type Query {
-
     getAllPermissions(page: Int, size: Int, sort: String, direction: String): [Permission]
     getPermission(id: String): Permission
 

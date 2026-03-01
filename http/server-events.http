@@ -1,4 +1,0 @@
-### Get server event stream
-GET {{host}}/coroutine/currency-rate/current
-Accept: text/event-stream
-Authorization: Bearer {{oauthToken}}

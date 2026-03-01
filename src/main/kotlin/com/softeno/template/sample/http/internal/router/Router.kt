@@ -1,6 +1,6 @@
 package com.softeno.template.sample.http.internal.router
 
-import com.softeno.template.sample.http.dto.SampleResponseDto
+import com.softeno.template.sample.http.internal.reactive.SampleResponseDto
 import com.softeno.template.sample.http.internal.reactive.SampleService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

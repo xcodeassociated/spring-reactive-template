@@ -8,7 +8,6 @@ import com.softeno.template.SoftenoReactiveMongoApp
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
 import com.softeno.template.app.user.db.UserReactiveRepository
 import com.softeno.template.fixture.PermissionFixture
-import com.softeno.template.sample.http.dto.SampleResponseDto
 import io.mockk.every
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactor.awaitSingle
