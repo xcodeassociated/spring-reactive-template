@@ -11,7 +11,7 @@ interface PrincipalHandler {
     suspend fun showPrincipal(log: Log, monoPrincipal: Mono<Principal>){
         val principal = monoPrincipal.awaitSingleOrNull()
         log.debug("principal: $principal, name: ${principal?.name}")
-        val authentication = ReactiveSecurityContextHolder.getContext().map { it.authentication }.awaitSingleOrNull()
+        val authentication = ReactiveSecurityContextHolder.getContext().mapNotNull { it.authentication }.awaitSingleOrNull()
         if (authentication != null) {
             val token = (authentication as JwtAuthenticationToken).token
             val userId = token.claims["sub"]

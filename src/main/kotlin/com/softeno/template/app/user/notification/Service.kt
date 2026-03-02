@@ -1,6 +1,5 @@
 package com.softeno.template.app.user.notification
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.softeno.template.sample.websocket.Message
 import com.softeno.template.sample.websocket.toJson
 import kotlinx.coroutines.channels.BufferOverflow
@@ -14,6 +13,7 @@ import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import tools.jackson.databind.ObjectMapper
 import java.time.Duration
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -85,6 +85,10 @@ class ReactiveUserUpdateEmitter(
                 }
                 Sinks.EmitResult.FAIL_OVERFLOW -> {
                     log.warn("[reactive] Failed to broadcast message - buffer overflow")
+                    false
+                }
+                Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER -> {
+                    log.warn("[reactive] Failed to broadcast message - no subscribers")
                     false
                 }
                 else -> {

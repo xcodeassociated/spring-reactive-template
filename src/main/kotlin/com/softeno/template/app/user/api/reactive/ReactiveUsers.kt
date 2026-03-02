@@ -55,7 +55,7 @@ class ReactiveUserController(
                     version = null
                 )
             }.flatMap { e -> userReactiveRepository.save(e) }
-            .doOnSuccess { applicationEventPublisher.publishEvent(UserAction("USER_CREATED_REACTIVE: ${it.id}")) }
+            .doOnSuccess { applicationEventPublisher.publishEvent(UserAction("USER_CREATED_REACTIVE: ${it?.id}")) }
             .zipWith(permissions)
             .map { tuple -> tuple.t1.toDomain(tuple.t2.map { it.toDomain() }).toDto() }
     }

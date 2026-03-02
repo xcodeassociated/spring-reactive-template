@@ -1,5 +1,5 @@
 plugins {
-	id 'org.springframework.boot' version '3.5.10'
+	id 'org.springframework.boot' version '4.0.2'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.jetbrains.kotlin.jvm' version '2.2.21'
 	id 'org.jetbrains.kotlin.plugin.spring' version '2.2.21'
@@ -7,6 +7,12 @@ plugins {
 	id 'com.google.osdetector' version '1.7.3'
 	id 'groovy'
 	id 'application'
+}
+
+ext {
+	set('springCloudVersion', '2025.1.1')
+	set('testcontainersVersion', '2.0.3')
+	set('springBootVersion', '4.0.2')
 }
 
 group = 'com.softeno'
@@ -18,10 +24,6 @@ java {
 	}
 }
 
-ext {
-	set('springCloudVersion', '2025.0.1')
-	set('testcontainersVersion', '2.0.3')
-}
 
 configurations {
 	compileOnly {
@@ -35,38 +37,43 @@ repositories {
 
 dependencies {
 	// spring project dependencies
-	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
+	implementation "org.springframework.boot:spring-boot-starter-data-mongodb-reactive:${springBootVersion}"
+	implementation "org.springframework.boot:spring-boot-starter-webflux:${springBootVersion}"
+	implementation "org.springframework.boot:spring-boot-starter-webclient:${springBootVersion}"
+	implementation "org.springframework.boot:spring-boot-starter-jackson:${springBootVersion}"
+	developmentOnly "org.springframework.boot:spring-boot-devtools:${springBootVersion}"
+	annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}"
 	implementation 'io.projectreactor.kotlin:reactor-kotlin-extensions'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
-	implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
 	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-reactor'
 	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core'
 	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-reactive'
 	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-slf4j'
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
 
 	// test utils
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test'
-	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
+	testImplementation "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
+	testImplementation "org.springframework.boot:spring-boot-starter-webflux-test:${springBootVersion}"
+	testImplementation "org.springframework.boot:spring-boot-webtestclient:${springBootVersion}"
+	testImplementation "org.springframework.boot:spring-boot-starter-jackson-test:${springBootVersion}"
 	testImplementation 'io.projectreactor:reactor-test'
 	testImplementation 'io.mockk:mockk:1.14.9'
 	testImplementation 'com.ninja-squad:springmockk:4.0.2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test'
+	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 
 	// security
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	testImplementation 'org.springframework.security:spring-security-test'
+	implementation "org.springframework.boot:spring-boot-starter-oauth2-client:${springBootVersion}"
+	implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server:${springBootVersion}"
+	implementation "org.springframework.boot:spring-boot-starter-security:${springBootVersion}"
+	testImplementation "org.springframework.security:spring-security-test:7.0.3"
 
 	// testcontainers
-	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-	testImplementation 'org.testcontainers:mongodb'
-	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation "org.springframework.boot:spring-boot-testcontainers:${springBootVersion}"
+	testImplementation "org.testcontainers:testcontainers-kafka:${testcontainersVersion}"
+	testImplementation "org.testcontainers:testcontainers-mongodb:${testcontainersVersion}"
+	testImplementation "org.testcontainers:testcontainers-junit-jupiter:${testcontainersVersion}"
 
 	// wiremock
 	testImplementation 'org.wiremock:wiremock-standalone:3.13.2'
@@ -78,13 +85,12 @@ dependencies {
 	kapt group: 'com.querydsl', name: 'querydsl-apt', version: '5.1.0'
 
 	// graphql
-	implementation 'org.springframework.boot:spring-boot-starter-graphql'
-	testImplementation 'org.springframework.graphql:spring-graphql-test'
+	implementation "org.springframework.boot:spring-boot-starter-graphql:${springBootVersion}"
+	testImplementation "org.springframework.boot:spring-boot-starter-graphql-test:${springBootVersion}"
 
 	// kafka
-	implementation 'org.springframework.kafka:spring-kafka'
-	implementation 'io.projectreactor.kafka:reactor-kafka'
-	testImplementation 'org.springframework.kafka:spring-kafka-test'
+	implementation "org.springframework.boot:spring-boot-starter-kafka:${springBootVersion}"
+	testImplementation "org.springframework.kafka:spring-kafka-test:${springBootVersion}"
 
 	// circuit breaker
 	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
@@ -94,21 +100,20 @@ dependencies {
 		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.2.3.Final:${osdetector.classifier}")
 	}
 
-	// monitoring
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
-
-	// elk
-	implementation 'net.logstash.logback:logstash-logback-encoder:8.1'
-
 	// springdoc
-	implementation 'org.springdoc:springdoc-openapi-starter-common:2.8.15'
-	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.8.15'
+	implementation 'org.springdoc:springdoc-openapi-starter-common:3.0.1'
+	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:3.0.1'
 
-	// zipkin
-	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
-	implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
-	implementation 'io.zipkin.reporter2:zipkin-sender-urlconnection'
+	// monitoring
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+	implementation "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"
+
+	// opentelemetry
+	implementation "org.springframework.boot:spring-boot-starter-opentelemetry:${springBootVersion}"
+	testImplementation "org.springframework.boot:spring-boot-starter-opentelemetry-test:${springBootVersion}"
+	implementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.25.0-alpha"
+	implementation "io.micrometer:micrometer-tracing-bridge-otel"
+	implementation "io.micrometer:context-propagation"
 }
 
 dependencyManagement {

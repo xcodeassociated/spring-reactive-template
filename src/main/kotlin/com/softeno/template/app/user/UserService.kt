@@ -37,8 +37,6 @@ class UserService(
 ) : PrincipalHandler {
     private val log = LogFactory.getLog(javaClass)
 
-    // note: used by http rest controller to return users with mapped permissions
-//    @ContinueSpan
     suspend fun getAll(
         page: Int,
         size: Int,
@@ -77,7 +75,7 @@ class UserService(
         log.info("User created: $user")
 
         applicationEventPublisher.publishEvent(
-            UserAction("USER_CREATED: ${user.id}", traceId = MDC.get("traceId"), spanId = MDC.get("spanId"))
+            UserAction("USER_CREATED: ${user.id}")
         )
         return@withContext user
     }

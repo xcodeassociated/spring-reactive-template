@@ -22,22 +22,24 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.test.autoconfigure.core.AutoConfigureCache
-import org.springframework.boot.test.autoconfigure.graphql.AutoConfigureGraphQl
-import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureGraphQlTester
+import org.springframework.boot.graphql.test.autoconfigure.AutoConfigureGraphQl
+import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureGraphQlTester
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
-import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.util.TestPropertyValues
-import org.springframework.context.ApplicationContextInitializer
-import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
 import org.springframework.graphql.test.tester.GraphQlTester
-import org.springframework.test.context.ContextConfiguration
+import org.springframework.test.annotation.DirtiesContext
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.client.WebClient
-import org.testcontainers.containers.MongoDBContainer
+import org.springframework.web.reactive.function.client.bodyToMono
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.kafka.KafkaContainer
+import org.testcontainers.mongodb.MongoDBContainer
 import org.testcontainers.utility.DockerImageName
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -48,34 +50,41 @@ import reactor.core.publisher.Mono
     properties = ["spring.profiles.active=integration"],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
-@ContextConfiguration(initializers = [BaseIntegrationTest.Companion.Initializer::class])
 @EnableConfigurationProperties
+@EnableMongoRepositories
 @ConfigurationPropertiesScan("com.softeno")
 @AutoConfigureWebTestClient(timeout = "6000")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@AutoConfigureCache
 @AutoConfigureJson
 @AutoConfigureGraphQl
 @AutoConfigureGraphQlTester
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 abstract class BaseIntegrationTest {
 
     companion object {
+        @Container
+        var kafka: KafkaContainer = KafkaContainer("apache/kafka-native:3.8.0")
+            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true")
+            .withEnv("ALLOW_PLAINTEXT_LISTENER", "true")
+            .withEnv("KAFKA_CREATE_TOPICS", "sample_topic_2" + ":1:1")
 
-        private const val DATABASE_NAME = "example1"
+        @Container
+        var mongoDBContainer = MongoDBContainer(DockerImageName.parse("mongo:6.0.4"))
+            .withEnv("MONGO_INITDB_DATABASE", "example1")
 
-        @JvmField
-        val dbContainer: MongoDBContainer = MongoDBContainer(DockerImageName.parse("mongo:6.0.4"))
-
-        class Initializer : ApplicationContextInitializer<ConfigurableApplicationContext> {
-            override fun initialize(applicationContext: ConfigurableApplicationContext) {
-                dbContainer.start()
-
-                TestPropertyValues.of(
-                    "spring.data.mongodb.uri=${Companion.dbContainer.connectionString}/${DATABASE_NAME}",
-                    "mongo.database=$DATABASE_NAME"
-                ).applyTo(applicationContext.environment)
+        @JvmStatic
+        @DynamicPropertySource
+        fun registerDynamicProperties(registry: DynamicPropertyRegistry) {
+            kafka.start()
+            registry.add("spring.kafka.bootstrap-servers") {
+                kafka.bootstrapServers
             }
 
+            mongoDBContainer.start()
+
+            registry.add("spring.mongodb.uri") {
+                mongoDBContainer.replicaSetUrl
+            }
         }
     }
 
@@ -104,11 +113,10 @@ abstract class BaseIntegrationTest {
 
 class ContextLoadsTest : BaseIntegrationTest() {
 
-    val dbContainer: MongoDBContainer = BaseIntegrationTest.dbContainer
-
     @Test
     fun contextLoads() {
-        assertTrue(dbContainer.isRunning)
+        assertTrue(mongoDBContainer.isRunning)
+        assertTrue(kafka.isRunning)
     }
 }
 
@@ -183,7 +191,7 @@ class ExternalControllerTest : BaseIntegrationTest(), ExternalApiAbility {
         // expect
         val response = webclient.get().uri("http://localhost:4500/sample/100")
             .retrieve()
-            .bodyToMono(SampleResponseDto::class.java)
+            .bodyToMono<SampleResponseDto>()
             .awaitSingle()
 
         assertEquals(expected, response)
@@ -245,7 +253,7 @@ class GraphqlPermissionControllerTestDocument : BaseIntegrationTest(), Permissio
             }
         """.trimIndent()
 
-        // note: returned result differs from graphigl because we use: .path("getAllPermissions")
+        // note: a returned result differs from graphigl because we use: .path("getAllPermissions")
         val expected = """
             [{"name":"${aPermission.name}","description":"${aPermission.description}"}]
         """.trimIndent()

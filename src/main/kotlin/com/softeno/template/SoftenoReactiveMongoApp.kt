@@ -33,13 +33,3 @@ class SpringApplicationReadyEventListener {
     }
 }
 
-@Component
-@Profile("playgroud")
-class SpringApplicationReadyEventListenerPlayground {
-    private val logger = LoggerFactory.getLogger(this::class.java)
-
-    @EventListener
-    fun onApplicationReady(event: ApplicationReadyEvent) {
-        // ...
-    }
-}
