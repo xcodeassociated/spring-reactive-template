@@ -1,6 +1,5 @@
 package com.softeno.template.app.config.security
 
-import org.apache.commons.logging.LogFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.domain.ReactiveAuditorAware
@@ -13,12 +12,11 @@ import reactor.core.publisher.Mono
 
 
 class AuditorAwareImpl : ReactiveAuditorAware<String> {
-    private val log = LogFactory.getLog(javaClass)
 
     override fun getCurrentAuditor(): Mono<String> {
         return ReactiveSecurityContextHolder.getContext()
-            .map(SecurityContext::getAuthentication)
-            .map(Authentication::getPrincipal)
+            .mapNotNull(SecurityContext::getAuthentication)
+            .mapNotNull(Authentication::getPrincipal)
             .switchIfEmpty(Mono.just("anonymous"))
             .flatMap { principal ->
                 if (principal is Jwt) {

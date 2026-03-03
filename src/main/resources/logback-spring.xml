@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <property name="projectName" value="template-service"/>
+    <property name="LOGS" value="./logs"/>
     <property name="defaultPattern"
               value="%d{ISO8601} [${projectName}] [%X{traceId:-}] [%X{spanId:-}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
 
@@ -12,77 +13,67 @@
         </encoder>
     </appender>
 
-    <springProfile name="dev">
+    <appender name="RollingFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOGS}/spring-boot-logger.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <Pattern>%d %p %C [%t] %m%n</Pattern>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOGS}/archived/spring-boot-logger-%d{yyyy-MM-dd}.%i.log
+            </fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>10MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="OpenTelemetry" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+    </appender>
+
+    <springProfile name="local">
         <root level="info">
             <appender-ref ref="Console"/>
         </root>
-        <logger name="org.springframework.security" level="info" additivity="false">
-            <appender-ref ref="Console"/>
-        </logger>
         <logger name="com.softeno" level="trace" additivity="false">
             <appender-ref ref="Console"/>
         </logger>
     </springProfile>
 
-    <springProfile name="!dev">
-        <property name="LOGSTASH_HOST" value="${logstash.host:-logstash}" />
-        <property name="LOGSTASH_PORT" value="${logstash.port:-50000}" />
-        <property name="LOGS" value="./logs"/>
-        <appender name="logstash" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-            <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
-            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-                <providers>
-                    <mdc/>
-                    <pattern>
-                        <pattern>
-                            {
-                            "application": "${projectName}",
-                            "timestamp": "%d{yyyy-MM-dd'T'HH:mm:ss.SSSZZ}",
-                            "logger": "%logger",
-                            "trace": "%X{traceId:-}",
-                            "span": "%X{spanId:-}",
-                            "thread": "%thread",
-                            "level": "%level",
-                            "message": "%message"
-                            }
-                        </pattern>
-                    </pattern>
-                    <stackTrace>
-                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
-                            <maxDepthPerThrowable>2048</maxDepthPerThrowable>
-                            <maxLength>32768</maxLength>
-                            <shortenedClassNameLength>256</shortenedClassNameLength>
-                            <rootCauseFirst>true</rootCauseFirst>
-                        </throwableConverter>
-                    </stackTrace>
-                </providers>
-            </encoder>
-        </appender>
-        <appender name="RollingFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOGS}/spring-boot-logger.log</file>
-            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                <Pattern>%d %p %C [%t] %m%n</Pattern>
-            </encoder>
+    <springProfile name="dev">
+        <root level="info">
+            <appender-ref ref="Console"/>
+            <appender-ref ref="OpenTelemetry"/>
+        </root>
+        <logger name="com.softeno" level="trace" additivity="false">
+            <appender-ref ref="Console"/>
+            <appender-ref ref="OpenTelemetry"/>
+        </logger>
+    </springProfile>
 
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>
-                    ${LOGS}/archived/spring-boot-logger-%d{yyyy-MM-dd}.%i.log
-                </fileNamePattern>
-                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                    <maxFileSize>10MB</maxFileSize>
-                </timeBasedFileNamingAndTriggeringPolicy>
-            </rollingPolicy>
-        </appender>
+    <springProfile name="docker">
         <root level="info">
             <appender-ref ref="RollingFile"/>
             <appender-ref ref="Console"/>
-            <appender-ref ref="logstash"/>
+            <appender-ref ref="OpenTelemetry"/>
         </root>
-        <logger name="com.softeno" level="info" additivity="false">
-            <appender-ref ref="Console"/>
+        <logger name="com.softeno" level="trace" additivity="false">
             <appender-ref ref="RollingFile"/>
-            <appender-ref ref="logstash"/>
+            <appender-ref ref="Console"/>
+            <appender-ref ref="OpenTelemetry"/>
         </logger>
+        <!--    db -->
+        <logger name="logging.level.io.r2dbc" level="debug" additivity="false" >
+            <appender-ref ref="Console" />
+        </logger>
+        <logger name="logging.level.org.springframework.r2dbc" level="debug" additivity="false" >
+            <appender-ref ref="Console" />
+        </logger>
+        <logger name="logging.level.org.springframework.data" level="debug" additivity="false" >
+            <appender-ref ref="Console" />
+        </logger>
+        <!-- -->
     </springProfile>
 
 </configuration>

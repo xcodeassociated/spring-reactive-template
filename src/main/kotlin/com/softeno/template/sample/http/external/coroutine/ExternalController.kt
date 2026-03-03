@@ -1,7 +1,7 @@
 package com.softeno.template.sample.http.external.coroutine
 
-import com.softeno.template.sample.http.dto.SampleResponseDto
 import com.softeno.template.sample.http.external.config.ExternalClientConfig
+import com.softeno.template.sample.http.internal.reactive.SampleResponseDto
 import kotlinx.coroutines.reactor.awaitSingle
 import org.apache.commons.logging.LogFactory
 import org.springframework.beans.factory.annotation.Qualifier

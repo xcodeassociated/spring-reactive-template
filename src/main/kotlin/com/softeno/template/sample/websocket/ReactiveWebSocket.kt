@@ -1,6 +1,5 @@
 package com.softeno.template.sample.websocket
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.commons.logging.LogFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -19,6 +18,7 @@ import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
+import tools.jackson.databind.ObjectMapper
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -61,7 +61,7 @@ class WebSocketConfig(
             val handshake = Message(from = "SYSTEM", to = session.id, content = "HANDSHAKE")
             reactiveMessageService.send(handshake, session)
 
-            val authentication = ReactiveSecurityContextHolder.getContext().map { it.authentication }
+            val authentication = ReactiveSecurityContextHolder.getContext().mapNotNull { it.authentication }
             val userIdMessage: Flux<String> = authentication.flux().map {
                 val token = (it as JwtAuthenticationToken).token
                 val userId = token.claims["sub"]
@@ -103,7 +103,7 @@ class WebSocketConfig(
                         }
                     } catch (e: Exception) {
                         log.error("ws: [chat] failed to parse message: ${wsMessage.payloadAsText}", e)
-                        // optionally send error message back to client
+                        // optionally send an error message back to a client
                     }
                 }.doOnError { error ->
                     log.error("ws: [chat] error in session: ${session.id}", error)

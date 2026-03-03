@@ -1,7 +1,8 @@
 package com.softeno.template.app.permission.api.reactive
 
 import com.softeno.template.app.common.getPageRequest
-import com.softeno.template.app.event.UserAction
+import com.softeno.template.app.kafka.KafkaMessage
+import com.softeno.template.app.kafka.KafkaSampleProducer
 import com.softeno.template.app.permission.api.PermissionNotFoundException
 import com.softeno.template.app.permission.db.PermissionDocument
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
@@ -14,7 +15,6 @@ import com.softeno.template.app.user.api.toDto
 import com.softeno.template.app.user.db.UserDocument
 import com.softeno.template.app.user.db.UserReactiveRepository
 import com.softeno.template.app.user.toDomain
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Flux
@@ -28,7 +28,7 @@ import reactor.kotlin.core.publisher.toMono
 class ReactiveUserController(
     val userReactiveRepository: UserReactiveRepository,
     val permissionsReactiveRepository: PermissionsReactiveRepository,
-    val applicationEventPublisher: ApplicationEventPublisher
+    val kafkaProducer: KafkaSampleProducer,
 ) {
     @PostMapping("/users")
     fun createUser(@RequestBody input: UserModifyCommand): Mono<UserDto> {
@@ -55,7 +55,10 @@ class ReactiveUserController(
                     version = null
                 )
             }.flatMap { e -> userReactiveRepository.save(e) }
-            .doOnSuccess { applicationEventPublisher.publishEvent(UserAction("USER_CREATED_REACTIVE: ${it.id}")) }
+            .doOnSuccess {
+                val message = KafkaMessage(content = "USER_CREATED_REACTIVE: ${it?.id}")
+                kafkaProducer.send(message)
+            }
             .zipWith(permissions)
             .map { tuple -> tuple.t1.toDomain(tuple.t2.map { it.toDomain() }).toDto() }
     }

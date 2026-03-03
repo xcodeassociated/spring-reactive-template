@@ -3,7 +3,8 @@ package com.softeno.template.app.user
 import com.softeno.template.app.common.ErrorFactory
 import com.softeno.template.app.common.PrincipalHandler
 import com.softeno.template.app.common.getPageRequest
-import com.softeno.template.app.event.UserAction
+import com.softeno.template.app.kafka.KafkaMessage
+import com.softeno.template.app.kafka.KafkaSampleProducer
 import com.softeno.template.app.permission.Permission
 import com.softeno.template.app.permission.PermissionService
 import com.softeno.template.app.permission.db.PermissionDocument
@@ -21,7 +22,6 @@ import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
 import org.apache.commons.logging.LogFactory
 import org.slf4j.MDC
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import java.security.Principal
@@ -32,13 +32,11 @@ class UserService(
     private val userCoroutineRepository: UserCoroutineRepository,
     private val permissionService: PermissionService,
     private val userDocumentService: UserDocumentService,
-    private val applicationEventPublisher: ApplicationEventPublisher,
+    private val kafkaProducer: KafkaSampleProducer,
     private val tracer: Tracer
 ) : PrincipalHandler {
     private val log = LogFactory.getLog(javaClass)
 
-    // note: used by http rest controller to return users with mapped permissions
-//    @ContinueSpan
     suspend fun getAll(
         page: Int,
         size: Int,
@@ -76,9 +74,8 @@ class UserService(
         val user = userCoroutineRepository.save(User(input, permissions).toDocument()).toDomain(permissions)
         log.info("User created: $user")
 
-        applicationEventPublisher.publishEvent(
-            UserAction("USER_CREATED: ${user.id}", traceId = MDC.get("traceId"), spanId = MDC.get("spanId"))
-        )
+        val message = KafkaMessage(content = "USER_CREATED: ${user.id}")
+        kafkaProducer.send(message)
         return@withContext user
     }
 

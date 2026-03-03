@@ -3,9 +3,9 @@ package com.softeno.template.app.config.http
 import com.softeno.template.sample.http.external.coroutine.ExternalServiceException
 import org.apache.commons.logging.LogFactory
 import org.springframework.boot.autoconfigure.web.WebProperties
-import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler
 import org.springframework.boot.web.error.ErrorAttributeOptions
-import org.springframework.boot.web.reactive.error.ErrorAttributes
+import org.springframework.boot.webflux.autoconfigure.error.AbstractErrorWebExceptionHandler
+import org.springframework.boot.webflux.error.ErrorAttributes
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -44,19 +44,19 @@ class GlobalErrorWebExceptionHandler(
 
     private val log = LogFactory.getLog(javaClass)
 
-    override fun getRoutingFunction(errorAttributes: ErrorAttributes?): RouterFunction<ServerResponse?> {
+    override fun getRoutingFunction(errorAttributes: ErrorAttributes): RouterFunction<ServerResponse> {
         return RouterFunctions.route(
             RequestPredicates.all()
         ) { request: ServerRequest -> renderErrorResponse(request) }
     }
 
-    private fun getCustomErrorAttributes(request: ServerRequest, includeStackTrace: Boolean): Map<String, Any> {
+    private fun getCustomErrorAttributes(request: ServerRequest, includeStackTrace: Boolean): Map<String, Any?> {
         val options: ErrorAttributeOptions = if (includeStackTrace) {
             ErrorAttributeOptions.of(ErrorAttributeOptions.Include.STACK_TRACE)
         } else {
             ErrorAttributeOptions.defaults()
         }
-        val errorAttributes: MutableMap<String, Any> = this.getErrorAttributes(request, options)
+        val errorAttributes = this.getErrorAttributes(request, options)
         val error = getError(request)
         log.error("[exception handler]: Handling exception: $error")
 
@@ -70,7 +70,7 @@ class GlobalErrorWebExceptionHandler(
             // ...
         }
 
-        errorAttributes["message"] = error.message ?: "" // note: custom message
+        errorAttributes["message"] = error?.message ?: "" // note: custom message
         errorAttributes["status"] = httpStatus.value()
 
         errorAttributes.remove("trace") // note: trace (stacktrace) omitted, can be also configured by: `includeStackTrace = false`
@@ -81,7 +81,7 @@ class GlobalErrorWebExceptionHandler(
         return errorAttributes
     }
 
-    private fun renderErrorResponse(request: ServerRequest): Mono<ServerResponse?> {
+    private fun renderErrorResponse(request: ServerRequest): Mono<ServerResponse> {
         val errorPropertiesMap = getCustomErrorAttributes(request, includeStackTrace = true)
 
         log.warn(
