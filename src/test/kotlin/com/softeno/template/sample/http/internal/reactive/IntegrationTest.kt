@@ -63,7 +63,7 @@ abstract class BaseIntegrationTest {
 
     companion object {
         @Container
-        var kafka: KafkaContainer = KafkaContainer("apache/kafka-native:3.8.0")
+        var kafka: KafkaContainer = KafkaContainer(DockerImageName.parse("apache/kafka-native:3.8.0"))
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true")
             .withEnv("ALLOW_PLAINTEXT_LISTENER", "true")
             .withEnv("KAFKA_CREATE_TOPICS", "sample_topic_2" + ":1:1")
@@ -81,7 +81,6 @@ abstract class BaseIntegrationTest {
             }
 
             mongoDBContainer.start()
-
             registry.add("spring.mongodb.uri") {
                 mongoDBContainer.replicaSetUrl
             }

@@ -13,6 +13,21 @@ ext {
 	set('springCloudVersion', '2025.1.1')
 	set('testcontainersVersion', '2.0.3')
 	set('springBootVersion', '4.0.2')
+	set('wiremockVersion', '3.13.2')
+	set('mockkVersion', '1.14.9')
+	set('querydslMongodbVersion', '5.1.0')
+	set('springmockkVersion', '4.0.2')
+	set('logbackVersion', '1.5.30')
+	set('springdocVersion', '3.0.1')
+	set('logbackAppenderVersion', '2.25.0-alpha')
+	set('postgresqlVersion', '42.7.10')
+	set('junitPlatformLauncherVersion', '6.0.3')
+	set('micrometerRegistryPrometheusVersion', '1.16.3')
+	set('springSecurityTestVersion', '7.0.3')
+	set('springResilience4jVersion', '5.0.1')
+	set('micrometerTracingBridgeOtelVersion', '1.6.3')
+	set('micrometerContextPropagationVersion', '1.2.1')
+	set('nettyResolverDnsNativeMacosVersion', '4.2.3.Final')
 }
 
 group = 'com.softeno'
@@ -56,10 +71,10 @@ dependencies {
 	testImplementation "org.springframework.boot:spring-boot-starter-webflux-test:${springBootVersion}"
 	testImplementation "org.springframework.boot:spring-boot-webtestclient:${springBootVersion}"
 	testImplementation "org.springframework.boot:spring-boot-starter-jackson-test:${springBootVersion}"
+	testImplementation "io.mockk:mockk:${mockkVersion}"
+	testImplementation "com.ninja-squad:springmockk:${springmockkVersion}"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher:${junitPlatformLauncherVersion}"
 	testImplementation 'io.projectreactor:reactor-test'
-	testImplementation 'io.mockk:mockk:1.14.9'
-	testImplementation 'com.ninja-squad:springmockk:4.0.2'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test'
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 
@@ -67,7 +82,7 @@ dependencies {
 	implementation "org.springframework.boot:spring-boot-starter-oauth2-client:${springBootVersion}"
 	implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server:${springBootVersion}"
 	implementation "org.springframework.boot:spring-boot-starter-security:${springBootVersion}"
-	testImplementation "org.springframework.security:spring-security-test:7.0.3"
+	testImplementation "org.springframework.security:spring-security-test:${springSecurityTestVersion}"
 
 	// testcontainers
 	testImplementation "org.springframework.boot:spring-boot-testcontainers:${springBootVersion}"
@@ -76,13 +91,13 @@ dependencies {
 	testImplementation "org.testcontainers:testcontainers-junit-jupiter:${testcontainersVersion}"
 
 	// wiremock
-	testImplementation 'org.wiremock:wiremock-standalone:3.13.2'
+	testImplementation "org.wiremock:wiremock-standalone:${wiremockVersion}"
 
 	// guerydsl
-	implementation ('com.querydsl:querydsl-mongodb:5.1.0') {
+	implementation ("com.querydsl:querydsl-mongodb:${querydslMongodbVersion}") {
 		exclude group: 'org.mongodb', module: 'mongo-java-driver'
 	}
-	kapt group: 'com.querydsl', name: 'querydsl-apt', version: '5.1.0'
+	kapt group: 'com.querydsl', name: 'querydsl-apt', version: "${querydslMongodbVersion}"
 
 	// graphql
 	implementation "org.springframework.boot:spring-boot-starter-graphql:${springBootVersion}"
@@ -93,27 +108,27 @@ dependencies {
 	testImplementation "org.springframework.kafka:spring-kafka-test:${springBootVersion}"
 
 	// circuit breaker
-	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+	implementation "org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j:${springResilience4jVersion}"
 
 	// macOs ARM only
 	if (osdetector.classifier == "osx-aarch_64") {
-		runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.2.3.Final:${osdetector.classifier}")
+		runtimeOnly("io.netty:netty-resolver-dns-native-macos:${nettyResolverDnsNativeMacosVersion}:${osdetector.classifier}")
 	}
 
 	// springdoc
-	implementation 'org.springdoc:springdoc-openapi-starter-common:3.0.1'
-	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:3.0.1'
+	implementation "org.springdoc:springdoc-openapi-starter-common:${springdocVersion}"
+	implementation "org.springdoc:springdoc-openapi-starter-webflux-ui:${springdocVersion}"
 
 	// monitoring
-	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+	runtimeOnly "io.micrometer:micrometer-registry-prometheus:${micrometerRegistryPrometheusVersion}"
 	implementation "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"
 
 	// opentelemetry
 	implementation "org.springframework.boot:spring-boot-starter-opentelemetry:${springBootVersion}"
 	testImplementation "org.springframework.boot:spring-boot-starter-opentelemetry-test:${springBootVersion}"
-	implementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.25.0-alpha"
-	implementation "io.micrometer:micrometer-tracing-bridge-otel"
-	implementation "io.micrometer:context-propagation"
+	implementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:${logbackAppenderVersion}"
+	implementation "io.micrometer:micrometer-tracing-bridge-otel:${micrometerTracingBridgeOtelVersion}"
+	implementation "io.micrometer:context-propagation:${micrometerContextPropagationVersion}"
 }
 
 dependencyManagement {

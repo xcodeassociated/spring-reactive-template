@@ -1,4 +1,4 @@
-package com.softeno.template.app.config.opentelementry
+package com.softeno.template.app.config.opentelemetry
 
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender
