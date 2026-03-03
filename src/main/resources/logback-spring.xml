@@ -51,7 +51,7 @@
         </logger>
     </springProfile>
 
-    <springProfile name="!dev">
+    <springProfile name="docker">
         <root level="info">
             <appender-ref ref="RollingFile"/>
             <appender-ref ref="Console"/>
