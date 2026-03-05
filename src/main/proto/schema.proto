@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package com.softeno.template.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.softeno.template.grpc";
+option java_outer_classname = "SampleGrpc";
+
+message SampleRequest {
+  string data = 1;
+}
+
+message SampleResponse {
+  string data = 1;
+}
+
+service SampleGrpcService {
+  // Unary
+  rpc Echo (SampleRequest) returns (SampleResponse) {}
+
+  // Server streaming
+  rpc EchoServerStream (SampleRequest) returns (stream SampleResponse) {}
+
+  // Client streaming
+  rpc EchoClientStream (stream SampleRequest) returns (SampleResponse) {}
+
+  // Bidirectional streaming
+  rpc EchoBidirectional (stream SampleRequest) returns (stream SampleResponse) {}
+}

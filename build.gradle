@@ -5,6 +5,7 @@ plugins {
 	id 'org.jetbrains.kotlin.plugin.spring' version '2.2.21'
 	id 'org.jetbrains.kotlin.kapt' version '2.2.21'
 	id 'com.google.osdetector' version '1.7.3'
+	id 'com.google.protobuf' version '0.9.5'
 	id 'groovy'
 	id 'application'
 }
@@ -28,6 +29,9 @@ ext {
 	set('micrometerTracingBridgeOtelVersion', '1.6.3')
 	set('micrometerContextPropagationVersion', '1.2.1')
 	set('nettyResolverDnsNativeMacosVersion', '4.2.3.Final')
+	set('springGrpcVersion', "1.0.2")
+	set('grpcServicesVersion', '1.79.0')
+	set('grpcKotlinVersion', '1.5.0')
 }
 
 group = 'com.softeno'
@@ -129,12 +133,20 @@ dependencies {
 	implementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:${logbackAppenderVersion}"
 	implementation "io.micrometer:micrometer-tracing-bridge-otel:${micrometerTracingBridgeOtelVersion}"
 	implementation "io.micrometer:context-propagation:${micrometerContextPropagationVersion}"
+
+	// grpc
+	implementation "io.grpc:grpc-services:${grpcServicesVersion}"
+	implementation "io.grpc:protoc-gen-grpc-kotlin:${grpcKotlinVersion}"
+	implementation "io.grpc:grpc-kotlin-stub:${grpcKotlinVersion}"
+	implementation "org.springframework.grpc:spring-grpc-spring-boot-starter:${springGrpcVersion}"
+	testImplementation "org.springframework.grpc:spring-grpc-test:${springGrpcVersion}"
 }
 
 dependencyManagement {
 	imports {
 		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
 		mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
+		mavenBom "org.springframework.grpc:spring-grpc-dependencies:${springGrpcVersion}"
 	}
 }
 
@@ -144,4 +156,28 @@ tasks.named('test') {
 
 kapt {
 	annotationProcessor("org.springframework.data.mongodb.repository.support.MongoAnnotationProcessor")
+}
+
+protobuf {
+	protoc {
+		artifact = 'com.google.protobuf:protoc'
+	}
+	plugins {
+		grpc {
+			artifact = 'io.grpc:protoc-gen-grpc-java'
+		}
+		grpckt {
+			artifact = "io.grpc:protoc-gen-grpc-kotlin:${grpcKotlinVersion}:jdk8@jar"
+		}
+	}
+	generateProtoTasks {
+		all()*.plugins {
+			grpc {
+				option '@generated=omit'
+			}
+			grpckt {
+				option '@generated=omit'
+			}
+		}
+	}
 }

@@ -8,7 +8,13 @@ import com.softeno.template.SoftenoReactiveMongoApp
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
 import com.softeno.template.app.user.db.UserReactiveRepository
 import com.softeno.template.fixture.PermissionFixture
+import com.softeno.template.grpc.SampleGrpcServiceGrpcKt
+import com.softeno.template.grpc.SampleRequest
+import io.grpc.ManagedChannelBuilder
 import io.mockk.every
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -24,6 +30,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.graphql.test.autoconfigure.AutoConfigureGraphQl
 import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureGraphQlTester
+import org.springframework.boot.grpc.test.autoconfigure.LocalGrpcPort
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient
@@ -47,7 +54,7 @@ import reactor.core.publisher.Mono
 
 @SpringBootTest(
     classes = [SoftenoReactiveMongoApp::class],
-    properties = ["spring.profiles.active=integration"],
+    properties = ["spring.profiles.active=integration", "spring.grpc.server.port=0"],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
 @EnableConfigurationProperties
@@ -263,5 +270,77 @@ class GraphqlPermissionControllerTestDocument : BaseIntegrationTest(), Permissio
             .path("getAllPermissions")
             .matchesJson(expected)
     }
+}
 
+class SampleGrpcServiceIntegrationTest : BaseIntegrationTest() {
+
+    @LocalGrpcPort
+    private var port: Int = 0
+
+    private lateinit var testStub: SampleGrpcServiceGrpcKt.SampleGrpcServiceCoroutineStub
+
+    @BeforeEach
+    fun setup() {
+        val channel = ManagedChannelBuilder
+            .forAddress("localhost", port)
+            .usePlaintext()
+            .build()
+
+        testStub = SampleGrpcServiceGrpcKt.SampleGrpcServiceCoroutineStub(channel)
+    }
+
+    @Test
+    fun `should echo unary`() = runBlocking {
+        val response = testStub.echo(
+            SampleRequest.newBuilder()
+                .setData("hello")
+                .build()
+        )
+
+        assertEquals("Echo: hello", response.data)
+    }
+
+    @Test
+    fun `should stream responses`() = runBlocking {
+        val responses = testStub
+            .echoServerStream(
+                SampleRequest.newBuilder()
+                    .setData("stream")
+                    .build()
+            )
+            .toList()
+
+        assertEquals(5, responses.size)
+        assertEquals("Stream[0]: stream", responses.first().data)
+        assertEquals("Stream[4]: stream", responses.last().data)
+    }
+
+    @Test
+    fun `should collect client stream`() = runBlocking {
+        val requestFlow = flowOf(
+            SampleRequest.newBuilder().setData("a").build(),
+            SampleRequest.newBuilder().setData("b").build(),
+            SampleRequest.newBuilder().setData("c").build()
+        )
+
+        val response = testStub.echoClientStream(requestFlow)
+
+        assertEquals("Collected: a, b, c", response.data)
+    }
+
+    @Test
+    fun `should handle bidirectional streaming`() = runBlocking {
+
+        val requestFlow = flow {
+            emit(SampleRequest.newBuilder().setData("1").build())
+            emit(SampleRequest.newBuilder().setData("2").build())
+            emit(SampleRequest.newBuilder().setData("3").build())
+        }
+
+        val responses = testStub.echoBidirectional(requestFlow).toList()
+
+        assertEquals(3, responses.size)
+        assertEquals("Reply: 1", responses[0].data)
+        assertEquals("Reply: 3", responses[2].data)
+    }
 }

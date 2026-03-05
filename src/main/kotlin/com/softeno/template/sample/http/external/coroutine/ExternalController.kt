@@ -1,5 +1,7 @@
 package com.softeno.template.sample.http.external.coroutine
 
+import com.softeno.template.grpc.SampleGrpcServiceGrpcKt
+import com.softeno.template.grpc.SampleRequest
 import com.softeno.template.sample.http.external.config.ExternalClientConfig
 import com.softeno.template.sample.http.internal.reactive.SampleResponseDto
 import kotlinx.coroutines.reactor.awaitSingle
@@ -20,7 +22,8 @@ class ExternalServiceException(message: String) : RuntimeException(message)
 class ExternalController(
     @param:Qualifier(value = "external") private val webClient: WebClient,
     private val reactiveCircuitBreakerFactory: ReactiveCircuitBreakerFactory<*, *>,
-    private val config: ExternalClientConfig
+    private val config: ExternalClientConfig,
+    private val stub: SampleGrpcServiceGrpcKt.SampleGrpcServiceCoroutineStub
 ) {
     private val log = LogFactory.getLog(javaClass)
 
@@ -117,6 +120,21 @@ class ExternalController(
 
         log.info("[external]: received: $response")
         return response
+    }
+
+    @GetMapping("/grpc/{data}")
+    suspend fun getGrpcHandler(@PathVariable data: String): SampleResponseDto {
+        log.info("[external]: GET grpc request: $data")
+
+        val response = stub.echo(
+            SampleRequest.newBuilder()
+                .setData(data)
+                .build()
+        ).data
+
+        log.info("[external]: received: $response")
+
+        return SampleResponseDto(data = response)
     }
 
 }
