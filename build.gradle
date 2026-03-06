@@ -26,8 +26,6 @@ ext {
 	set('micrometerRegistryPrometheusVersion', '1.16.3')
 	set('springSecurityTestVersion', '7.0.3')
 	set('springResilience4jVersion', '5.0.1')
-	set('micrometerTracingBridgeOtelVersion', '1.6.3')
-	set('micrometerContextPropagationVersion', '1.2.1')
 	set('nettyResolverDnsNativeMacosVersion', '4.2.3.Final')
 	set('springGrpcVersion', "1.0.2")
 	set('grpcServicesVersion', '1.79.0')
@@ -131,8 +129,6 @@ dependencies {
 	implementation "org.springframework.boot:spring-boot-starter-opentelemetry:${springBootVersion}"
 	testImplementation "org.springframework.boot:spring-boot-starter-opentelemetry-test:${springBootVersion}"
 	implementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:${logbackAppenderVersion}"
-	implementation "io.micrometer:micrometer-tracing-bridge-otel:${micrometerTracingBridgeOtelVersion}"
-	implementation "io.micrometer:context-propagation:${micrometerContextPropagationVersion}"
 
 	// grpc
 	implementation "io.grpc:grpc-services:${grpcServicesVersion}"
