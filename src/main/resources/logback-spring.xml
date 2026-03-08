@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="projectName" value="template-service"/>
+    <property name="projectName" value="spring-reactive-mongo-template"/>
     <property name="LOGS" value="./logs"/>
     <property name="defaultPattern"
               value="%d{ISO8601} [${projectName}] [%X{traceId:-}] [%X{spanId:-}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
