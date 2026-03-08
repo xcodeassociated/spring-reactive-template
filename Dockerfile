@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:24-jre
 LABEL authors="xcodeassociated"
 
 COPY ./build/libs/*.jar ./app.jar
