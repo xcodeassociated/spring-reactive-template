@@ -31,14 +31,14 @@ GET {{host}}/external/grpc/{{$random.integer(0, 1000)}}
 Authorization: Bearer {{oauthToken}}
 
 ### GRPC Unary call
-GRPC localhost:9080/com.softeno.template.grpc.SampleGrpcService/Echo
+GRPC {{host_grpc}}/com.softeno.template.grpc.SampleGrpcService/Echo
 
 {
   "data": "123"
 }
 
 ### GRPC Server streaming
-GRPC localhost:9080/com.softeno.template.grpc.SampleGrpcService/EchoServerStream
+GRPC {{host_grpc}}/com.softeno.template.grpc.SampleGrpcService/EchoServerStream
 
 {
   "data": "hello"
