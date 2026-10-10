@@ -6,12 +6,9 @@ import com.softeno.template.app.permission.api.reactive.PermissionsReactiveMongo
 import com.softeno.template.app.permission.db.PermissionCoroutineRepository
 import com.softeno.template.app.permission.db.PermissionDocument
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
-import com.softeno.template.app.permission.db.QPermissionDocument
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.reactive.asFlow
-import kotlinx.coroutines.reactive.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
 import org.apache.commons.logging.LogFactory
@@ -40,11 +37,7 @@ class PermissionService(
 
     suspend fun get(id: String): Permission =
         withContext(MDCContext()) {
-            // note: reactive and coroutine works together
-            val permission = QPermissionDocument.permissionDocument
-            val predicate = permission.id.eq(id)
-            return@withContext permissionsReactiveRepository.findOne(predicate)
-                .asFlow().firstOrNull()?.toDomain() ?: throw ErrorFactory.errorPermissionNotFound(id)
+            return@withContext permissionsReactiveRepository.findById(id).map { it.toDomain() }.awaitSingle()
         }
 
     suspend fun update(id: String, input: PermissionModifyCommand): Permission =

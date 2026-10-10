@@ -1,11 +1,11 @@
 ### Permissions
 
 ###
-GET {{host}}/permissions?page=0&size=10&sort=id&direction=DESC
+GET {{host}}/coroutine/permissions?page=0&size=10&sort=id&direction=DESC
 Authorization: Bearer {{oauthToken}}
 
 ###
-POST {{host}}/permissions
+POST {{host}}/coroutine/permissions
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
@@ -16,18 +16,18 @@ client.global.set("permissionId", response.body._id)
  %}
 
 ###
-GET {{host}}/permissions/{{permissionId}}
+GET {{host}}/coroutine/permissions/{{permissionId}}
 Authorization: Bearer {{oauthToken}}
 
 ###
-PUT {{host}}/permissions/{{permissionId}}
+PUT {{host}}/coroutine/permissions/{{permissionId}}
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
 {"name": "test-coroutine-changed: {{$uuid}}", "description": "test description coroutine changed!", "version":  0}
 
 ###
-DELETE {{host}}/permissions/{{permissionId}}
+DELETE {{host}}/coroutine/permissions/{{permissionId}}
 Authorization: Bearer {{oauthToken}}
 
 > {%
@@ -37,15 +37,15 @@ client.global.set("permissionId", null)
 ### User
 
 ###
-GET {{host}}/users?page=0&size=10&sort=id&direction=ASC
+GET {{host}}/coroutine/users?page=0&size=10&sort=id&direction=ASC
 Authorization: Bearer {{oauthToken}}
 
 ###
-GET {{host}}/usersCount
+GET {{host}}/coroutine/usersCount
 Authorization: Bearer {{oauthToken}}
 
 ###
-POST {{host}}/users
+POST {{host}}/coroutine/users
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
@@ -56,18 +56,18 @@ Authorization: Bearer {{oauthToken}}
 %}
 
 ###
-PUT {{host}}/users/{{userId}}
+PUT {{host}}/coroutine/users/{{userId}}
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
 
 {"name": "user changed: {{$uuid}}", "email":  "{{$random.email}}", "role": ["{{permissionId}}"], "version": 0}
 
 ###
-GET {{host}}/users/{{userId}}
+GET {{host}}/coroutine/users/{{userId}}
 Authorization: Bearer {{oauthToken}}
 
 ###
-DELETE {{host}}/users/{{userId}}
+DELETE {{host}}/coroutine/users/{{userId}}
 Authorization: Bearer {{oauthToken}}
 
 > {%
@@ -75,12 +75,12 @@ Authorization: Bearer {{oauthToken}}
 %}
 
 ###
-GET {{host}}/usersCount
+GET {{host}}/coroutine/usersCount
 Authorization: Bearer {{oauthToken}}
 
 ### GraphQL
 
-GRAPHQL http://localhost:8080/graphql
+GRAPHQL {{host}}/graphql
 Content-Type: application/graphql
 Authorization: Bearer {{oauthToken}}
 

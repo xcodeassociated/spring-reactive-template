@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository
-import org.springframework.data.querydsl.ReactiveQuerydslPredicateExecutor
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
@@ -66,8 +65,7 @@ interface UserCoroutineRepository : CoroutineCrudRepository<UserDocument, String
 }
 
 @Repository
-interface UserReactiveRepository : ReactiveMongoRepository<UserDocument, String>,
-    ReactiveQuerydslPredicateExecutor<UserDocument> {
+interface UserReactiveRepository : ReactiveMongoRepository<UserDocument, String> {
     fun findAllBy(pageable: Pageable): Flux<UserDocument>
     fun findByIdAndVersion(id: String, version: Long): Mono<UserDocument>
 }

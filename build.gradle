@@ -16,7 +16,6 @@ ext {
 	set('springBootVersion', '4.0.2')
 	set('wiremockVersion', '3.13.2')
 	set('mockkVersion', '1.14.9')
-	set('querydslMongodbVersion', '5.1.0')
 	set('springmockkVersion', '4.0.2')
 	set('logbackVersion', '1.5.30')
 	set('springdocVersion', '3.0.1')
@@ -94,12 +93,6 @@ dependencies {
 
 	// wiremock
 	testImplementation "org.wiremock:wiremock-standalone:${wiremockVersion}"
-
-	// guerydsl
-	implementation ("com.querydsl:querydsl-mongodb:${querydslMongodbVersion}") {
-		exclude group: 'org.mongodb', module: 'mongo-java-driver'
-	}
-	kapt group: 'com.querydsl', name: 'querydsl-apt', version: "${querydslMongodbVersion}"
 
 	// graphql
 	implementation "org.springframework.boot:spring-boot-starter-graphql:${springBootVersion}"

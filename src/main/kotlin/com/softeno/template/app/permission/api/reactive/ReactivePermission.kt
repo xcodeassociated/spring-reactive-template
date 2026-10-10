@@ -7,10 +7,8 @@ import com.softeno.template.app.permission.api.PermissionNotFoundException
 import com.softeno.template.app.permission.api.toDto
 import com.softeno.template.app.permission.db.PermissionDocument
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
-import com.softeno.template.app.permission.db.QPermissionDocument
 import com.softeno.template.app.permission.toDocument
 import com.softeno.template.app.permission.toDomain
-import com.softeno.template.app.user.api.UserNotFoundException
 import org.springframework.data.mongodb.core.FindAndModifyOptions
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
@@ -43,12 +41,7 @@ class ReactivePermissionController(
 
     @GetMapping("/permissions/{id}")
     fun getPermission(@PathVariable id: String): Mono<PermissionDto> {
-        // note: ReactiveMongoRepository -> return permissionsReactiveRepository.findById(id)
-        val permission = QPermissionDocument.permissionDocument
-        val predicate = permission.id.eq(id)
-        return permissionsReactiveRepository.findOne(predicate)
-            .switchIfEmpty(Mono.error(UserNotFoundException("User not found with id: $id")))
-            .map { it.toDomain().toDto() }
+        return permissionsReactiveRepository.findById(id).map { it.toDomain().toDto() }
     }
 
     @DeleteMapping("/permissions/{id}")

@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository
-import org.springframework.data.querydsl.ReactiveQuerydslPredicateExecutor
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
@@ -58,13 +57,12 @@ data class PermissionDocument(
 
 @Repository
 interface PermissionCoroutineRepository :
-    CoroutineCrudRepository<PermissionDocument, String>, ReactiveQuerydslPredicateExecutor<PermissionDocument> {
+    CoroutineCrudRepository<PermissionDocument, String> {
     fun findAllBy(pageable: Pageable): Flow<PermissionDocument>
 }
 
 @Repository
-interface PermissionsReactiveRepository : ReactiveMongoRepository<PermissionDocument, String>,
-    ReactiveQuerydslPredicateExecutor<PermissionDocument> {
+interface PermissionsReactiveRepository : ReactiveMongoRepository<PermissionDocument, String> {
     fun findAllBy(pageable: Pageable): Flux<PermissionDocument>
     fun findByIdIn(ids: Set<String>): Flux<PermissionDocument>
 }
