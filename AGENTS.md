@@ -50,4 +50,4 @@ Requires JDK 24 (`sdkman` GraalVM works). Protobuf/gRPC stubs generate from `src
 ## Keeping docs current
 
 - **`README.md` must always be up to date.** Before finishing any development task, check whether it changed anything the README documents (purpose, features, feature-removal table, project structure, commands, ports, setup steps, infrastructure) and update the README in the same change if so. Never hand off with a stale README.
-- **`AGENTS.md`** — update on changes to: stack versions, Gradle tasks/commands, feature set or its removal contract, security config structure, CI/deployment. Verify commands you document actually run; mark anything untested as such.
+- **`AGENTS.md` must always be up to date too.** Before finishing any development task, check whether it changed anything this file documents (stack versions, Gradle tasks/commands, feature set or its removal contract, security config structure, CI/deployment) and update it in the same change if so. Verify commands you document actually run; mark anything untested as such.
