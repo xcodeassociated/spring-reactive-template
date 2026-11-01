@@ -72,5 +72,8 @@ data class KeycloakUserEvent(
     val sessionId: String?,
     val ipAddress: String,
     val error: String?,
-    val details: Map<String, String>
+    // real Keycloak events carry "details": null (e.g. LOGOUT from the account
+    // client) — a non-null Map here deserializes to a Kotlin NPE and the
+    // listener retry-burns the record
+    val details: Map<String, String>?
 )

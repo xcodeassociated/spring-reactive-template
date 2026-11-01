@@ -16,6 +16,7 @@ import org.springframework.http.codec.ServerCodecConfigurer
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.server.*
+import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
 
 
@@ -58,7 +59,6 @@ class GlobalErrorWebExceptionHandler(
         }
         val errorAttributes = this.getErrorAttributes(request, options)
         val error = getError(request)
-        log.error("[exception handler]: Handling exception: ${error?.message?.replace(Regex("ticket=[A-Za-z0-9_-]{8,}"), "ticket=[REDACTED]")}")
 
         var httpStatus: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR // note: can be taken from custom exception
         errorAttributes["errorCode"] = "E000" // note: custom error code from exception
@@ -66,12 +66,15 @@ class GlobalErrorWebExceptionHandler(
         if (error is ExternalServiceException) {
             httpStatus = HttpStatus.SERVICE_UNAVAILABLE
             errorAttributes["errorCode"] = "E100"
+        } else if (error is ResponseStatusException) {
+            // framework-level statuses (404 no resource incl. favicon, 405, 415…) keep their
+            // real status instead of being flattened to a 500 + ERROR-log storm
+            httpStatus = HttpStatus.valueOf(error.statusCode.value())
+            errorAttributes["errorCode"] = if (httpStatus.is4xxClientError) "E4XX" else "E000"
         } else { // note: generic RuntimeException handler
             // ...
         }
 
-        // exception messages embed the full request URI; single-use WS tickets ride
-        // the query string and must never reach the logs
         val message = error?.message?.replace(Regex("ticket=[A-Za-z0-9_-]{8,}"), "ticket=[REDACTED]") ?: ""
         errorAttributes["message"] = message // note: custom message
         errorAttributes["status"] = httpStatus.value()
@@ -80,6 +83,12 @@ class GlobalErrorWebExceptionHandler(
 
         val correspondentStatus = HttpStatus.valueOf(httpStatus.value())
         errorAttributes["error"] = correspondentStatus.reasonPhrase
+
+        if (correspondentStatus.isError) { // 5xx stays ERROR; 4xx are client noise, warn only
+            log.error("[exception handler]: Handling exception: ${error?.message?.replace(Regex("ticket=[A-Za-z0-9_-]{8,}"), "ticket=[REDACTED]")}")
+        } else {
+            log.warn("[exception handler]: ${correspondentStatus.value()} for ${request.uri()}")
+        }
 
         return errorAttributes
     }
