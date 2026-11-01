@@ -58,7 +58,7 @@ class GlobalErrorWebExceptionHandler(
         }
         val errorAttributes = this.getErrorAttributes(request, options)
         val error = getError(request)
-        log.error("[exception handler]: Handling exception: $error")
+        log.error("[exception handler]: Handling exception: ${error?.message?.replace(Regex("ticket=[A-Za-z0-9_-]{8,}"), "ticket=[REDACTED]")}")
 
         var httpStatus: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR // note: can be taken from custom exception
         errorAttributes["errorCode"] = "E000" // note: custom error code from exception
@@ -70,7 +70,10 @@ class GlobalErrorWebExceptionHandler(
             // ...
         }
 
-        errorAttributes["message"] = error?.message ?: "" // note: custom message
+        // exception messages embed the full request URI; single-use WS tickets ride
+        // the query string and must never reach the logs
+        val message = error?.message?.replace(Regex("ticket=[A-Za-z0-9_-]{8,}"), "ticket=[REDACTED]") ?: ""
+        errorAttributes["message"] = message // note: custom message
         errorAttributes["status"] = httpStatus.value()
 
         errorAttributes.remove("trace") // note: trace (stacktrace) omitted, can be also configured by: `includeStackTrace = false`

@@ -3,7 +3,7 @@
     <property name="projectName" value="spring-reactive-mongo-template"/>
     <property name="LOGS" value="./logs"/>
     <property name="defaultPattern"
-              value="%d{ISO8601} [${projectName}] [%X{traceId:-}] [%X{spanId:-}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
+              value="%d{ISO8601} [${projectName}] [%X{traceId:-}] [%X{spanId:-}] [%X{sessionId:-}] %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable"/>
 
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

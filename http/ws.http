@@ -1,0 +1,61 @@
+### WebSocket chat via one-time ticket (browser-usable auth).
+### Run http/auth.http first so {{oauthToken}} is set.
+### Syntax per JetBrains docs "WebSocket requests": https://www.jetbrains.com/help/idea/http-client-in-product-code-editor.html#websocket
+### - the body of a WEBSOCKET request is the first frame sent on connect
+### - `=== wait-for-server` before the next message = wait for one server frame first
+### - received frames are shown in the Services tool window (no scripted assertions on WS frames)
+
+### 1) Mint a single-use ticket (256-bit, 10 s TTL, redeemable exactly once)
+POST {{host}}/ws-ticket
+Authorization: Bearer {{oauthToken}}
+
+> {%
+    client.global.set("wsTicket", response.body.ticket)
+    client.log("ws ticket minted, expires in " + response.body.expiresIn + "s")
+ %}
+
+### 2) Connect and chat: sends the first frame on connect, waits for one server
+### frame (HANDSHAKE), sends a second frame, waits for the next (your user id),
+### then sends a broadcast. ALL echo comes back — `from` is server-stamped with
+### your user id, not the value you sent. Answer pings with the pong frame.
+WEBSOCKET ws://localhost:8080/ws?ticket={{wsTicket}}
+Content-Type: application/json
+
+{"to":"ALL","content":"hello from IntelliJ HTTP Client"}
+
+=== wait-for-server
+{"to":"ALL","content":"second frame after one server frame"}
+
+=== wait-for-server
+{"to":"ALL","content":"broadcast after second server frame"}
+
+=== wait-for-server
+=== wait-for-server
+{"to":"SYSTEM","content":"pong"}
+
+### 3) Negative: ticket replay -> upgrade rejected with 401 BEFORE the handshake
+### (run immediately after request 2 consumed the ticket)
+WEBSOCKET ws://localhost:8080/ws?ticket={{wsTicket}}
+
+{"to":"ALL","content":"replay - expect 401 error"}
+
+### 4) Negative: foreign Origin -> 403 before the handshake.
+### Mint a fresh ticket first (a foreign-Origin attempt does NOT consume it),
+### then this request shows the 403; the same ticket still works afterwards (5).
+POST {{host}}/ws-ticket
+Authorization: Bearer {{oauthToken}}
+
+> {%
+    client.global.set("wsTicketOrigin", response.body.ticket)
+ %}
+
+###
+WEBSOCKET ws://localhost:8080/ws?ticket={{wsTicketOrigin}}
+Origin: http://evil.example
+
+{"to":"ALL","content":"expect 403 Forbidden"}
+
+### 5) The ticket survived the 403: allowed Origin (or none) connects fine
+WEBSOCKET ws://localhost:8080/ws?ticket={{wsTicketOrigin}}
+
+{"to":"ALL","content":"expect 101 + HANDSHAKE frame"}

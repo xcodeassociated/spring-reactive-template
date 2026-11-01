@@ -101,12 +101,18 @@ class SecurityConfig {
                     "/swagger-resources/**",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
+                    // chat dev tool (static files from ./chat, dev-tool only)
+                    "/chat/**",
                     // todo: make this endpoint secure
                     "/update/**"
                 )
                     .permitAll()
-                    .pathMatchers("/reactive/**", "/coroutine/**", "/ws/**", "/graphql/**", "/external/**").hasAuthority("ROLE_ADMIN")
-                    .pathMatchers("/sample-secured/**", "/minio/**").authenticated()
+                    // /ws/** is authenticated by the one-time ticket redeemed at the
+                    // upgrade (WsTicketRedeemFilter), not by an Authorization header —
+                    // browsers cannot send headers on a WebSocket handshake.
+                    // /ws-ticket mints those tickets and therefore needs a real bearer.
+                    .pathMatchers("/reactive/**", "/coroutine/**", "/graphql/**", "/external/**").hasAuthority("ROLE_ADMIN")
+                    .pathMatchers("/sample-secured/**", "/minio/**", "/ws/**", "/ws-ticket").authenticated()
             }
             .oauth2ResourceServer { rss ->
                 rss.jwt { jwtDecoder(issuer, jwkSetUri) }
