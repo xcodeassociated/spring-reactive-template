@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (implemented on `feat/ws-ticket-auth`)
 - **Date:** 2026-11-01
-- **Context:** `sample/websocket` chat feature (coroutine WebFlux WebSocket at `/ws`), Keycloak/OAuth2 resource server, Kafka event bridge for Keycloak auth events
+- **Context:** WebSocket chat feature (coroutine WebFlux at `/ws`, today `notifications/ws` — see ADR-0003 for the package restructure), Keycloak/OAuth2 resource server, Kafka event bridge for Keycloak auth events
 - **References:** RFC 6455 §10.2/§10.5/§7.4.2, RFC 9700 (BCP 240) §4.3.2, RFC 10017, OWASP CSWSH (CWE-1385); skills `websocket-auth-session-lifecycle`, `spring-webflux-coroutine-websockets`
 
 ## Context
@@ -137,9 +137,9 @@ Key invariants:
 - The connect seam is swappable: migrating later to first-frame auth or a BFF
   changes only step 2–3 of the connect flow; registry, reverse index, sweeper,
   close-code contract, and reconnect logic survive (≈80 % of the machinery).
-- Everything is removable per the feature-removal contract: `sample/websocket/**`
-  (`api/`, `config/`, `security/`), `chat/`, `com.softeno.ws.*` keys, three
-  `SecurityConfig` rules.
+- Everything is removable per the feature-removal contract: `notifications/ws/**`
+  (`api/`, `security/`), `web/chat.html`, `com.softeno.ws.*` keys, two
+  `SecurityConfig` rules (the static dev page moved to the shared `web/` tools dir).
 
 **Negative / accepted costs**
 

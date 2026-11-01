@@ -1,8 +1,8 @@
 package com.softeno.template.testsupport
 
 import com.softeno.template.SoftenoReactiveMongoApp
-import com.softeno.template.app.permission.db.PermissionsReactiveRepository
-import com.softeno.template.app.user.db.UserReactiveRepository
+import com.softeno.template.users.permission.db.PermissionsReactiveRepository
+import com.softeno.template.users.db.UserReactiveRepository
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
