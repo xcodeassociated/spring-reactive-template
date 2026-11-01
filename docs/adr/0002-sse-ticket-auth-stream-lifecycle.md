@@ -2,11 +2,11 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-01
-- **Context:** Resolves the `// todo: make this endpoint secure` on `/update/**`; builds on ADR-0001 (WebSocket one-time tickets)
+- **Context:** Resolves the `// todo: make this endpoint secure` on `/update/**`; builds on ADR-0001 (WebSocket one-time tickets). Package names follow the ADR-0003 restructure (`notifications/`).
 
 ## Context
 
-The SSE user-update stream (`GET /update/user`, `app/user/notification`) was initially public.
+The SSE user-update stream (`GET /update/user`, `notifications/sse`) was initially public.
 Handshake-only bearer auth (Spring Security `.authenticated()`) fixed the anonymous case but left
 three gaps:
 
@@ -27,7 +27,7 @@ Also SSE-specific: `EventSource` **auto-reconnects by replaying the same URL** (
 Extend the WebSocket ticket mechanism into shared infrastructure and apply the
 `sse-auth-session-lifecycle` skill's Policy A (close-at-exp + reconnect).
 
-1. **Shared ticket infra → `app/ticket/`**: `TicketStore` (256-bit SecureRandom, SHA-256-hashed
+1. **Shared ticket infra → `notifications/ticket/`**: `TicketStore` (256-bit SecureRandom, SHA-256-hashed
    keys, atomic compare-and-delete redeem, TTL), `TicketRecord`, `TicketAuthentication` (rebuilds
    the security principal from mint-time claims), `TicketSupport.isOriginAllowed`,
    `TicketProperties` (`com.softeno.ticket.*`). Per-process in-memory: a crash leaves no orphans;
@@ -60,7 +60,7 @@ Termination-event contract (the stream analog of the WS 4401/4403 codes):
 
 ## Consequences
 
-- `app/user/notification` imports `app/ticket` (app→app, no new sample coupling);
+- `notifications/sse` imports `notifications/ticket` (same-feature dependency, no new coupling);
   `KafkaKeycloakController` gains the SSE registry dependency.
 - New config keys: `com.softeno.ticket.{ttl-seconds,sweep-interval-seconds,allowed-origins}`,
   `com.softeno.sse.sweep-interval-seconds`; `com.softeno.ws.ticket-ttl-seconds` moved to
@@ -68,8 +68,8 @@ Termination-event contract (the stream analog of the WS 4401/4403 codes):
 - `/ws-ticket`, `/sse-ticket`, `/ws/**`, `/update/**` are `.authenticated()` in `SecurityConfig`.
 - The stream ceiling is `sweepInterval`-granular (exposure window: `exp + sweepInterval`).
 - Single-instance assumption for ticket/subscription registries (documented, same as ADR-0001).
-- Removing the SSE feature = delete `app/user/notification/` + `com.softeno.sse.*` + the
-  `/update/**`, `/sse-ticket` rules; removing both transports then also drops `app/ticket/`.
+- Removing the SSE feature = delete `notifications/sse/` + `com.softeno.sse.*` + the
+  `/update/**`, `/sse-ticket` rules; removing both transports then also drops `notifications/ticket/`.
 
 ## Alternatives considered
 
