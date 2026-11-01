@@ -63,8 +63,6 @@ data class ChatConfigProperties(
     val staleCheck: Boolean,
     val heartbeatIntervalSeconds: Int,
     val staleCheckThresholdSeconds: Int,
-    // one-time handshake ticket TTL (seconds); tickets are single-use
-    val ticketTtlSeconds: Int = 10,
     // how often the sweeper checks token-ceiling expiry and heartbeat staleness
     val sweepIntervalSeconds: Int = 10,
     // exact-match Origin allowlist for the /ws handshake (comma-separated)

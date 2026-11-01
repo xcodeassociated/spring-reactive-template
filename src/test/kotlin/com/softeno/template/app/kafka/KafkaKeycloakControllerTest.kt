@@ -1,5 +1,6 @@
 package com.softeno.template.app.kafka
 
+import com.softeno.template.app.user.notification.SseSubscriptionRegistry
 import com.softeno.template.sample.websocket.WebSocketNotificationSender
 import com.softeno.template.testsupport.R
 import io.mockk.every
@@ -11,8 +12,8 @@ import tools.jackson.databind.ObjectMapper
 
 /**
  * Unit tests for the Keycloak-events listener: LOGOUT revokes the user's
- * WebSocket sessions, LOGIN/REGISTER do not. Event payloads come from
- * [KeycloakEventFixture] with [R]-randomized subjects and ids.
+ * WebSocket sessions and SSE subscriptions, LOGIN/REGISTER do not. Event
+ * payloads come from [KeycloakEventFixture] with [R]-randomized subjects and ids.
  */
 class KafkaKeycloakControllerTest : KeycloakEventFixture {
 
@@ -26,28 +27,32 @@ class KafkaKeycloakControllerTest : KeycloakEventFixture {
     }
 
     @Test
-    fun `LOGOUT event revokes the user's websocket sessions`() {
+    fun `LOGOUT event revokes the user's websocket sessions and sse subscriptions`() {
         val userId = R.sub("logout-target")
         val eventId = R.uuid()
         val sender = mockk<WebSocketNotificationSender>()
         every { sender.revokeUser(userId) } returns 2
+        val sse = mockk<SseSubscriptionRegistry>()
+        every { sse.revokeUser(userId) } returns 1
         val objectMapper = mockk<ObjectMapper>()
         stubReadValue(objectMapper, "LOGOUT", userId, eventId)
-        val controller = KafkaKeycloakController(objectMapper, sender)
+        val controller = KafkaKeycloakController(objectMapper, sender, sse)
 
         runBlocking { controller.listen(keycloakEvent("LOGOUT", userId, eventId)) }
 
         verify(exactly = 1) { sender.revokeUser(userId) }
+        verify(exactly = 1) { sse.revokeUser(userId) }
     }
 
     @Test
     fun `LOGIN and REGISTER events do not revoke sessions`() {
         val userId = R.sub("quiet-user")
         val sender = mockk<WebSocketNotificationSender>(relaxed = true)
+        val sse = mockk<SseSubscriptionRegistry>(relaxed = true)
         val objectMapper = mockk<ObjectMapper>()
         val loginId = R.uuid()
         stubReadValue(objectMapper, "LOGIN", userId, loginId)
-        val controller = KafkaKeycloakController(objectMapper, sender)
+        val controller = KafkaKeycloakController(objectMapper, sender, sse)
 
         runBlocking {
             controller.listen(keycloakEvent("LOGIN", userId, loginId))
@@ -61,5 +66,6 @@ class KafkaKeycloakControllerTest : KeycloakEventFixture {
         }
 
         verify(exactly = 0) { sender.revokeUser(any()) }
+        verify(exactly = 0) { sse.revokeUser(any()) }
     }
 }

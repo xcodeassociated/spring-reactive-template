@@ -1,5 +1,9 @@
 package com.softeno.template.sample.websocket.security
 
+import com.softeno.template.app.ticket.TicketAuthentication
+import com.softeno.template.app.ticket.TicketOrigin
+import com.softeno.template.app.ticket.TicketStore
+import com.softeno.template.app.ticket.TicketSupport
 import com.softeno.template.sample.websocket.ChatConfigProperties
 import org.apache.commons.logging.LogFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -22,10 +26,11 @@ import reactor.core.publisher.Mono
  * Contract:
  * - exact-match Origin allowlist on every handshake (RFC 6455 10.2, CSWSH/CWE-1385);
  *   non-browser clients may omit Origin — browsers always send it.
- * - valid ticket -> atomic compare-and-delete, rebuild an Authentication from the
- *   mint-time claims and write it into the reactive security context, so the
- *   handler's existing principal read and the /ws authenticated rule keep working.
- * - expired/replayed ticket -> 401 before the upgrade.
+ * - valid ticket -> atomic compare-and-delete + origin check (SSE-minted tickets
+ *   cannot open a WebSocket), rebuild an Authentication from the mint-time claims
+ *   and write it into the reactive security context, so the handler's existing
+ *   principal read and the /ws authenticated rule keep working.
+ * - expired/replayed/wrong-origin ticket -> 401 before the upgrade.
  * - no ticket -> pass through: the security chain then rejects anonymous
  *   upgrades with 401, while existing header-based (non-browser) clients still work.
  *
@@ -53,7 +58,7 @@ class WsTicketRedeemFilter(
         }
 
         val origin = request.headers.origin
-        if (origin != null && !isOriginAllowed(origin, config.allowedOrigins)) {
+        if (origin != null && !TicketSupport.isOriginAllowed(origin, config.allowedOrigins)) {
             log.warn("ws: [ticket] rejected handshake, foreign origin: $origin")
             exchange.response.statusCode = HttpStatus.FORBIDDEN
             return exchange.response.setComplete()
@@ -62,24 +67,18 @@ class WsTicketRedeemFilter(
         val ticket = request.queryParams.getFirst("ticket")
             ?: return chain.filter(exchange) // header-auth or anonymous: the security chain decides
 
-        val record = ticketStore.redeem(ticket)
+        val record = ticketStore.redeem(ticket, TicketOrigin.WEBSOCKET)
         if (record == null) {
             log.warn("ws: [ticket] rejected handshake, missing/expired/replayed ticket")
             exchange.response.statusCode = HttpStatus.UNAUTHORIZED
             return exchange.response.setComplete()
         }
 
-        val authentication = WsTicketAuthentication.from(record)
+        val authentication = TicketAuthentication.from(record)
         return chain.filter(exchange)
             .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication))
     }
 
     private fun isWebSocketUpgrade(upgradeHeader: String?): Boolean =
         "websocket".equals(upgradeHeader, ignoreCase = true)
-
-    companion object {
-        // exact-match allowlist (no wildcards, no suffix matching)
-        fun isOriginAllowed(origin: String, allowedOrigins: List<String>): Boolean =
-            allowedOrigins.any { it == origin }
-    }
 }

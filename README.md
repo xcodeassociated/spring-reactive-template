@@ -42,7 +42,8 @@ SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 | Actuator / Prometheus | http://localhost:8080/actuator |
 | gRPC server (reflection enabled) | localhost:9080 |
 | Keycloak (admin/admin) | http://localhost:8090 |
-| Chat dev page (WebSocket + ticket auth) | http://localhost:8080/chat/chat.html (or serve `chat/` from :3000) |
+| Chat dev page (WebSocket + ticket auth) | http://localhost:8080/web/chat.html (or serve `web/` from :3000) |
+| SSE dev page (ticket-auth stream + lifecycle) | http://localhost:8080/web/sse.html (or serve `web/` from :3000) |
 
 Profiles: `local` (dev, OTLP export disabled), `docker` (used by the image), `integration` (test security bypass).
 
@@ -75,7 +76,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   ├── config/env.properties     # local secrets/URLs (from template — keep out of git)
 │   ├── graphql/schema.graphqls   # GraphQL schema
 │   └── logback-spring.xml        # OTel log appender config
-├── chat/chat.html                # static dev tool: browser chat over ticket-auth WebSocket (served at /chat/)
+├── web/                          # static dev tools served at /web/: chat.html (ticket-auth WebSocket), sse.html (ticket-auth SSE)
 ├── src/main/kotlin/com/softeno/template/
 │   ├── SoftenoReactiveMongoApp.kt
 │   ├── app/                      # ← reusable building blocks
@@ -83,11 +84,12 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   │   ├── config/               # SecurityConfig, Mongo auditing, error handling, OTel
 │   │   ├── kafka/                # Kafka config, sample producer/consumer, Keycloak event listener
 │   │   ├── permission/           # example domain: CRUD over REST, coroutines & GraphQL
+│   │   ├── ticket/               # shared one-time-ticket infra (WS + SSE handshake auth)
 │   │   └── user/                 # example domain + SSE update streams (notification/)
 │   └── sample/                   # ← feature demos; delete together with their references in app/
 │       ├── http/                 # coroutine controller & functional router, external WebClient + circuit breaker
 │       ├── proto/                # gRPC server service & client channel config
-│       └── websocket/            # coroutine WebSocket handlers + one-time-ticket auth (api/config/security sub-packages)
+│       └── websocket/            # coroutine WebSocket handlers + one-time-ticket auth (api/security sub-packages; static page serving is app/config/http/WebToolConfig)
 └── src/test/kotlin/              # tests mirror main packages — integration tests end in IT.kt (Testcontainers/WireMock), unit tests in Test.kt
 ```
 
@@ -108,7 +110,7 @@ Everything under `sample/` and the `user`/`permission` domains are **examples** 
 - **GraphQL** — spring-graphql controllers for both domains, GraphiQL enabled.
 - **gRPC** — Kotlin coroutine stubs generated from `schema.proto`, server with reflection, named client channels.
 - **WebSockets** — coroutine implementation (`com.softeno.ws.enabled`), with heartbeat, stale-session sweeper, one-time-ticket browser auth (§ [WebSocket chat auth](#websocket-chat-auth-one-time-ticket)), and token-expiry/logout close codes.
-- **Server-Sent Events** — coroutine user-update emitter (`app/user/notification`).
+- **Server-Sent Events** — coroutine user-update emitter (`app/user/notification`); `/update/user` authenticates with a bearer **or** a one-time ticket (`POST /sse-ticket` → `?ticket=`), enforces the token ceiling (`token_expired`), and closes on logout (`logged_out`) — see [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md).
 - **Resilience4j circuit breaker** — wrapping an external `WebClient` call.
 - **OpenAPI** — springdoc Swagger UI.
 - **Observability** — Actuator + Prometheus, OpenTelemetry traces/metrics/logs over OTLP, trace-correlated logging.
@@ -122,8 +124,9 @@ The build file groups dependencies under comment headers (`// kafka`, `// graphq
 | Kafka | `app/kafka/` | `// kafka` deps, `spring.kafka.*` + `com.softeno.kafka.*` props, compose services |
 | GraphQL | `*GraphqlController.kt` files | `// graphql` deps, `resources/graphql/`, `spring.graphql.*` props |
 | gRPC | `sample/proto/`, `src/main/proto/` | `// grpc` deps + protobuf plugin in `build.gradle`, `spring.grpc.*` props |
-| WebSockets | `sample/websocket/` and `chat/` | `com.softeno.ws.*` props (`com.softeno.ws.enabled` toggle), `/ws/**` + `/ws-ticket` + `/chat/**` security rules, references in `app/kafka/KafkaSampleHandler.kt` + `app/kafka/KafkaKeycloakController.kt` + `app/user/notification/` |
-| SSE | `app/user/notification/` | `/update/**` security rule |
+| WebSockets | `sample/websocket/` and `web/chat.html` | `com.softeno.ws.*` props (`com.softeno.ws.enabled` toggle), `/ws/**` + `/ws-ticket` security rules, references in `app/kafka/KafkaSampleHandler.kt` + `app/kafka/KafkaKeycloakController.kt` + `app/user/notification/`; keep `app/ticket/` and the `/web/**` static serving unless SSE is also removed |
+| SSE | `app/user/notification/` | `com.softeno.sse.*` props, `/update/**` + `/sse-ticket` security rules, `web/sse.html`, the `sse.revokeUser` call in `app/kafka/KafkaKeycloakController.kt`, `http/update.http`; keep `app/ticket/` unless WebSockets are also removed |
+| One-time tickets (WS + SSE infra) | `app/ticket/` | only after both transports above are removed; `com.softeno.ticket.*` props, `/ws-ticket` + `/sse-ticket` rules |
 | Circuit breaker / external client | `sample/http/external/` | `// circuit breaker` dep, `com.softeno.external.*` props, references in `app/config/http/WebExceptionHandler.kt` + the `externalGraphQl` bean in `app/user/api/GraphqlController.kt` |
 | OpenAPI | — | `// springdoc` deps, `springdoc.*` props |
 | OpenTelemetry | `config/opentelemetry/` | otel deps, `management.opentelemetry.*` props, simplify `logback-spring.xml` |
@@ -168,22 +171,55 @@ enforces the token `exp` ceiling as the always-on backstop (Keycloak logout does
 not revoke outstanding access tokens — keep them short). The registry, index,
 and ticket store are per-process/per-instance.
 
-Config (`application.properties`): `com.softeno.ws.ticket-ttl-seconds=10`,
+Config (`application.properties`): shared ticket keys `com.softeno.ticket.ttl-seconds=10`,
+`com.softeno.ticket.sweep-interval-seconds=10`,
+`com.softeno.ticket.allowed-origins=http://localhost:3000,http://localhost:8080`
+(exact match, checked at redemption for both transports),
 `com.softeno.ws.allowed-origins=http://localhost:3000,http://localhost:8080`
 (comma-separated exact match; `:8080` is the dev page's own origin),
 `com.softeno.ws.sweep-interval-seconds=10`, plus the existing
 `heartbeat-interval-seconds` / `stale-check*` keys.
 
-**Chat page:** `chat/chat.html`, served at http://localhost:8080/chat/ (static,
-permitAll) — keycloak-js from CDN → login → mint ticket → chat, two tabs see each
-other. The page always calls the backend at `http://localhost:8080`, so it also
-works when served from a static server (`(cd chat && python3 -m http.server 3000)`
+**Chat page:** `web/chat.html`, served at http://localhost:8080/web/ (static,
+permitAll via `WebToolConfig`) — keycloak-js from CDN → login → mint ticket → chat,
+two tabs see each other. The page always calls the backend at `http://localhost:8080`,
+so it also works when served from a static server (`(cd web && python3 -m http.server 3000)`
 → http://localhost:3000/chat.html). Browser login requires the realm `app`
 `frontend` client to list the page's origin as redirect/web origin — the stock
 config allows `http://localhost:3000` (kcadm command for `:8080` in the file header).
 
 **Try it without a browser:** `http/ws.http` (IntelliJ HTTP Client) mints tickets
 and drives the socket with `WEBSOCKET` requests.
+
+## SSE stream auth (one-time ticket + lifecycle)
+
+Decision record and alternatives: [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md).
+`GET /update/user` is a long-lived stream authenticated at the request only, so the
+ticket + lifecycle machinery keeps it correct after the token expires.
+
+1. **API/service clients** send a normal `Authorization: Bearer` header.
+2. **Browsers** can't set headers on `EventSource`, so: `POST /sse-ticket` (bearer) →
+   `{ "ticket": "...", "expiresIn": 10 }` → `new EventSource("/update/user?ticket=...")`.
+   The ticket is redeemed before any body bytes (401 on missing/expired/replayed, or a
+   ticket minted for the WebSocket transport — tickets are transport-bound).
+   Because `EventSource` auto-reconnects by replaying the URL, the ticket is single-use
+   and the client **re-mints on `error`** before reconnecting.
+3. **Lifecycle:** the stream is bound to the mint-time identity. Past the token ceiling
+   the sweeper emits `event: token_expired` and ends the stream (client refreshes +
+   re-mints + reconnects); a Keycloak `LOGOUT` event emits `event: logged_out` and ends
+   it (client stops). Both transports share `app/ticket/` and the Kafka logout consumer.
+
+**Try it:** `http/update.http` — bearer subscribe, then mint + ticket subscribe.
+
+**SSE page:** `web/sse.html`, served at http://localhost:8080/web/sse.html (and from a
+static :3000 server like the chat page) — keycloak-js → login → Subscribe (mint +
+`EventSource`) → heartbeat events appear; the *Create user* button triggers a
+`USER_CREATED` broadcast that arrives as an `update` event. The page implements the
+full client contract and doubles as the reference frontend implementation: re-mints
+a fresh ticket on `error` before reconnecting (EventSource would otherwise replay the
+used ticket in a 401 loop), refreshes + re-mints + reconnects on `token_expired`, and
+stops without reconnecting on `logged_out`. Open it in two tabs and press *Keycloak
+logout* in one to watch revocation close the other tab's stream.
 
 ## Configuration reference
 
@@ -196,6 +232,7 @@ Significant design decisions are recorded in [`docs/adr/`](docs/adr):
 | ADR | Decision | Status |
 |---|---|---|
 | [ADR-0001](docs/adr/0001-websocket-one-time-ticket-auth.md) | WebSocket chat auth via one-time tickets (+ session lifecycle: ceiling sweeper, logout revocation, 4401/4403 contract) | Accepted |
+| [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md) | SSE auth via shared one-time tickets + stream lifecycle (transport-bound tickets, close-at-exp `token_expired`, logout `logged_out`) | Accepted |
 
 ADRs are **immutable** once accepted: when a decision or flow changes, do not rewrite
 history — add a new numbered ADR explaining the new context and decision, and mark the

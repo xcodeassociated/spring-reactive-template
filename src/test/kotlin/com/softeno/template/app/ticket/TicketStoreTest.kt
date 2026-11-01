@@ -1,6 +1,5 @@
-package com.softeno.template.sample.websocket.security
+package com.softeno.template.app.ticket
 
-import com.softeno.template.sample.websocket.aChatConfig
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -11,11 +10,13 @@ import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-class TicketStoreTest : WsTicketFixture {
+class TicketStoreTest : TicketFixture {
+
+    private fun store(ttl: Int = 10) = TicketStore(TicketProperties(ttlSeconds = ttl))
 
     @Test
     fun `issue returns 256-bit url-safe ticket and stores only its SHA-256 hash`() {
-        val store = TicketStore(aChatConfig())
+        val store = store()
         val ticket = store.issue(aTicketRecord())
 
         // 32 bytes base64url without padding = 43 chars
@@ -27,28 +28,42 @@ class TicketStoreTest : WsTicketFixture {
 
     @Test
     fun `redeem is single use`() {
-        val store = TicketStore(aChatConfig())
+        val store = store()
         val record = aTicketRecord()
         val ticket = store.issue(record)
 
-        val first = store.redeem(ticket)
+        val first = store.redeem(ticket, TicketOrigin.WEBSOCKET)
         assertNotNull(first)
         assertEquals(record.sub, first!!.sub)
 
         // replay fails; store drained
-        assertNull(store.redeem(ticket))
+        assertNull(store.redeem(ticket, TicketOrigin.WEBSOCKET))
         assertEquals(0, store.size())
     }
 
     @Test
+    fun `ticket cannot cross transports - origin is enforced`() {
+        val store = store()
+
+        val sseTicket = store.issue(aTicketRecord(origin = TicketOrigin.SSE))
+        // a WEBSOCKET redeem of an SSE ticket fails — and consumes nothing
+        assertNull(store.redeem(sseTicket, TicketOrigin.WEBSOCKET))
+        // the ticket is gone either way (compare-and-delete before origin check)
+        assertEquals(0, store.size())
+
+        val wsTicket = store.issue(aTicketRecord(origin = TicketOrigin.WEBSOCKET))
+        assertNull(store.redeem(wsTicket, TicketOrigin.SSE))
+    }
+
+    @Test
     fun `concurrent redeem - exactly one winner (atomic compare-and-delete)`() {
-        val store = TicketStore(aChatConfig())
+        val store = store()
         val ticket = store.issue(aTicketRecord())
         val winners = AtomicInteger()
 
         runBlocking {
             List(16) {
-                async { if (store.redeem(ticket) != null) winners.incrementAndGet() }
+                async { if (store.redeem(ticket, TicketOrigin.WEBSOCKET) != null) winners.incrementAndGet() }
             }.awaitAll()
         }
 
@@ -57,28 +72,28 @@ class TicketStoreTest : WsTicketFixture {
 
     @Test
     fun `expired ticket TTL is rejected`() {
-        val store = TicketStore(aChatConfig())
+        val store = store()
         val ticket = store.issue(aTicketRecord(), ttlSeconds = -1)
-        assertNull(store.redeem(ticket))
+        assertNull(store.redeem(ticket, TicketOrigin.WEBSOCKET))
     }
 
     @Test
     fun `ticket whose token ceiling already passed is rejected`() {
-        val store = TicketStore(aChatConfig())
+        val store = store()
         val ticket = store.issue(aTicketRecord(exp = Instant.now().minusSeconds(1)))
-        assertNull(store.redeem(ticket))
+        assertNull(store.redeem(ticket, TicketOrigin.WEBSOCKET))
     }
 
     @Test
     fun `unknown ticket is rejected`() {
-        val store = TicketStore(aChatConfig())
+        val store = store()
         store.issue(aTicketRecord())
-        assertNull(store.redeem("not-a-real-ticket"))
+        assertNull(store.redeem("not-a-real-ticket", TicketOrigin.WEBSOCKET))
     }
 
     @Test
     fun `expired entries are evicted so the store stays bounded`() {
-        val store = TicketStore(aChatConfig())
+        val store = store()
         repeat(50) { store.issue(aTicketRecord(), ttlSeconds = -1) }
         // eviction runs at the start of every operation: the next issue drops
         // all 50 dead entries and only its own survives

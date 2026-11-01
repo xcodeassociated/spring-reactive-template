@@ -1,8 +1,9 @@
 package com.softeno.template.sample.websocket.api
 
-import com.softeno.template.sample.websocket.ChatConfigProperties
-import com.softeno.template.sample.websocket.security.TicketRecord
-import com.softeno.template.sample.websocket.security.TicketStore
+import com.softeno.template.app.ticket.TicketOrigin
+import com.softeno.template.app.ticket.TicketProperties
+import com.softeno.template.app.ticket.TicketRecord
+import com.softeno.template.app.ticket.TicketStore
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.apache.commons.logging.LogFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -31,7 +32,7 @@ import java.time.Instant
 @RestController
 class WsTicketController(
     private val ticketStore: TicketStore,
-    private val config: ChatConfigProperties,
+    private val config: TicketProperties,
 ) {
     private val log = LogFactory.getLog(javaClass)
 
@@ -57,8 +58,9 @@ class WsTicketController(
             sid = claims["sid"] as? String,
             exp = authentication.token.expiresAt ?: Instant.now(),
             roles = authentication.authorities.mapNotNull { it.authority },
+            origin = TicketOrigin.WEBSOCKET,
         )
         log.debug("ws: [ticket] mint requested for sub: ${record.sub}")
-        return ResponseEntity.ok(TicketResponse(ticketStore.issue(record), config.ticketTtlSeconds))
+        return ResponseEntity.ok(TicketResponse(ticketStore.issue(record), config.ttlSeconds))
     }
 }
