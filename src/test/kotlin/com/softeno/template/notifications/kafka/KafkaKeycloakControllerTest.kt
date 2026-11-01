@@ -6,6 +6,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.ObjectMapper
 
@@ -42,6 +44,22 @@ class KafkaKeycloakControllerTest : KeycloakEventFixture {
 
         verify(exactly = 1) { ws.revokeUser(userId) }
         verify(exactly = 1) { sse.revokeUser(userId) }
+    }
+
+    @Test
+    fun `real keycloak logout payload with null details deserializes`() {
+        // the account-client LOGOUT payload carries "details": null and an extra
+        // realmName field — the listener used to retry-burn on it (NPE in the ctor)
+        val raw = """{"id":"230e3401-7959-45ab-9697-d875b78bd5c1","time":1793569620548,"type":"LOGOUT",
+            "realmId":"015343f0-98e7-4ab9-8000-99c1836a7ec0","realmName":"app","clientId":"account",
+            "userId":"05dbf0b6-057b-44b4-aeaa-d83d662c5833","sessionId":"86d88131-4a24-4a8f-ae3c-9d2b6768084f",
+            "ipAddress":"192.168.65.1","error":null,"details":null}"""
+        val event = tools.jackson.databind.json.JsonMapper.builder().build()
+            .readValue(raw, KeycloakUserEvent::class.java)
+
+        assertEquals(KeycloakEventType.LOGOUT, event.type)
+        assertEquals("05dbf0b6-057b-44b4-aeaa-d83d662c5833", event.userId)
+        assertNull(event.details)
     }
 
     @Test
