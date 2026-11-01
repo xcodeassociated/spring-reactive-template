@@ -1,6 +1,7 @@
 package com.softeno.template.sample.websocket
 
 import com.softeno.template.sample.websocket.security.SessionBinding
+import com.softeno.template.testsupport.awaitUntil
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -24,13 +25,7 @@ import java.time.Instant
 import java.util.Collections
 
 class CoroutineMessageServiceTest {
-    private fun config() = ChatConfigProperties(
-        staleCheck = false, // no background sweeper in unit tests
-        heartbeatIntervalSeconds = 10,
-        staleCheckThresholdSeconds = 30,
-    )
-
-    private fun service() = CoroutineMessageService(config(), mockk<ObjectMapper>(relaxed = true))
+    private fun service() = CoroutineMessageService(aChatConfig(), mockk<ObjectMapper>(relaxed = true))
 
     private fun session(id: String): WebSocketSession = mockk(relaxed = true) {
         every { this@mockk.id } returns id
@@ -43,15 +38,6 @@ class CoroutineMessageServiceTest {
         CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
             flow.collect { synchronized(sink) { sink.add(it) } }
         }
-
-    private fun awaitTrue(timeoutMs: Long = 2000, predicate: () -> Boolean) {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
-            if (predicate()) return
-            Thread.sleep(20)
-        }
-        throw AssertionError("condition not met within ${timeoutMs}ms")
-    }
 
     private fun monoEmpty(): Mono<Void> = Mono.empty()
 
@@ -90,7 +76,7 @@ class CoroutineMessageServiceTest {
 
         service.routeMessage(a, Message(from = "attacker-claims", to = "ALL", content = "hi"))
 
-        awaitTrue { received.isNotEmpty() }
+        awaitUntil(what = "relayed message") { received.isNotEmpty() }
         val relayed = received.first()
         assertEquals("hi", relayed.content)
         // server-stamped identity, NOT the client claim
@@ -128,11 +114,11 @@ class CoroutineMessageServiceTest {
         val closed = service.revokeUser("u1")
         assertEquals(2, closed)
 
-        awaitTrue { frames.any { it.content == WsControl.LOGGED_OUT } }
+        awaitUntil(what = "LOGGED_OUT control frame") { frames.any { it.content == WsControl.LOGGED_OUT } }
         assertTrue(frames.filter { it.content == WsControl.LOGGED_OUT }.all { it.from == "SYSTEM" })
 
         // after the close grace the sessions are unregistered from both maps
-        awaitTrue { service.sessionsFor("u1").isEmpty() }
+        awaitUntil(what = "session unregistration") { service.sessionsFor("u1").isEmpty() }
         assertTrue(closedStatus.isCaptured)
         assertEquals(4403, closedStatus.captured.code)
         verify(exactly = 0) { other.close(any()) }
@@ -153,10 +139,10 @@ class CoroutineMessageServiceTest {
 
         service.sweep()
 
-        awaitTrue { frames.any { it.content == WsControl.REAUTH_REQUIRED } }
-        awaitTrue { statusSlot.isCaptured }
+        awaitUntil(what = "REAUTH_REQUIRED control frame") { frames.any { it.content == WsControl.REAUTH_REQUIRED } }
+        awaitUntil(what = "session close") { statusSlot.isCaptured }
         assertEquals(4401, statusSlot.captured.code)
-        awaitTrue { service.sessionsFor("u1").isEmpty() }
+        awaitUntil(what = "session unregistration") { service.sessionsFor("u1").isEmpty() }
         job.cancel()
     }
 

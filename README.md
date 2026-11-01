@@ -88,7 +88,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │       ├── http/                 # coroutine controller & functional router, external WebClient + circuit breaker
 │       ├── proto/                # gRPC server service & client channel config
 │       └── websocket/            # coroutine WebSocket handlers + one-time-ticket auth (api/config/security sub-packages)
-└── src/test/kotlin/              # MockK unit tests, Testcontainers (Mongo/Kafka) & WireMock integration tests
+└── src/test/kotlin/              # tests mirror main packages — integration tests end in IT.kt (Testcontainers/WireMock), unit tests in Test.kt
 ```
 
 Everything under `sample/` and the `user`/`permission` domains are **examples** — replace them with your own domain packages.
@@ -100,7 +100,7 @@ Everything under `sample/` and the `user`/`permission` domains are **examples** 
 - **Reactive MongoDB** — reactive repositories, `auto-index-creation`, optimistic locking (`version`), auditing (`createdBy`/`modifiedBy` from the JWT subject via `ReactiveMongoAuditorConfig`), `BaseDocument` common interface.
 - **Keycloak / OAuth2 security** — JWT resource server, `realm_access` roles mapped to Spring authorities, method security, CORS config, per-path authorization rules in one file (`SecurityConfig.kt`).
 - **Global error handling** — `WebExceptionHandler` + common `BaseException`/`ErrorFactory` pattern.
-- **Testing** — JUnit 5, MockK/springmockk, `WebTestClient`, GraphQL test support, Testcontainers (Mongo + Kafka), WireMock for external HTTP, fixtures for test data.
+- **Testing** — JUnit 5, MockK/springmockk, `WebTestClient`, GraphQL test support, Testcontainers (Mongo + Kafka), WireMock for external HTTP, fixtures for test data, static `R` utility generating random test data; integration tests end in `IT`.
 - **Packaging & CI** — Gradle wrapper, CI build+test on every branch/PR, multi-arch (`amd64`/`arm64`) image pushed from `main`, Dependabot dependency graph.
 
 ### Optional (each independently removable)

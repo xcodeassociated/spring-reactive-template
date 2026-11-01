@@ -1,34 +1,30 @@
 package com.softeno.template.sample.websocket.security
 
-import com.softeno.template.sample.websocket.ChatConfigProperties
+import com.softeno.template.sample.websocket.WS_ALLOWED_ORIGIN
+import com.softeno.template.sample.websocket.aChatConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
-import org.springframework.http.server.reactive.ServerHttpRequest
+import org.springframework.web.server.ServerWebExchange
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
-import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import java.net.URI
 import java.net.URLEncoder
-import java.time.Instant
 
 /**
  * Filter-contract unit tests against mock exchanges: the exact pre-upgrade
  * decision table (Origin allowlist, ticket redeem, pass-throughs).
  */
-class WsTicketRedeemFilterTest {
-    private val config = ChatConfigProperties(
-        staleCheck = false,
-        heartbeatIntervalSeconds = 10,
-        staleCheckThresholdSeconds = 30,
-        allowedOrigins = listOf("http://localhost:3000"),
-    )
+class WsTicketRedeemFilterTest : WsTicketFixture {
+
+    private val config = aChatConfig()
     private val store = TicketStore(config)
     private val filter = WsTicketRedeemFilter(store, config)
 
@@ -36,11 +32,11 @@ class WsTicketRedeemFilterTest {
         path: String = "/ws",
         method: HttpMethod = HttpMethod.GET,
         upgrade: String? = "websocket",
-        origin: String? = "http://localhost:3000",
+        origin: String? = WS_ALLOWED_ORIGIN,
         ticket: String? = null,
     ): ServerWebExchange {
         val query = ticket?.let { "?ticket=${URLEncoder.encode(it, "UTF-8")}" } ?: ""
-        val builder = MockServerHttpRequest.method(method, java.net.URI("http://localhost$path$query"))
+        val builder = MockServerHttpRequest.method(method, URI("http://localhost$path$query"))
         upgrade?.let { builder.header(HttpHeaders.UPGRADE, it) }
         origin?.let { builder.header(HttpHeaders.ORIGIN, it) }
         return MockServerWebExchange.from(builder)
@@ -76,7 +72,7 @@ class WsTicketRedeemFilterTest {
 
     @Test
     fun `foreign origin is rejected with 403 and the chain never runs`() {
-        val exchange = exchange(origin = "http://evil.example", ticket = store.issue(record()))
+        val exchange = exchange(origin = "http://evil.example", ticket = store.issue(aTicketRecord()))
         val chain = RecordingChain()
 
         filter.filter(exchange, chain).block()
@@ -111,26 +107,28 @@ class WsTicketRedeemFilterTest {
 
     @Test
     fun `no Origin header passes the check (non-browser clients)`() {
-        val exchange = exchange(origin = null, ticket = store.issue(record()))
+        val record = aTicketRecord()
+        val exchange = exchange(origin = null, ticket = store.issue(record))
         val chain = RecordingChain()
 
         filter.filter(exchange, chain).block()
 
         assertEquals(true, chain.called)
         val auth = chain.seenAuthentication as JwtAuthenticationToken
-        assertEquals("user-1", auth.token.claims["sub"])
+        assertEquals(record.sub, auth.token.claims["sub"])
     }
 
     @Test
     fun `valid ticket is redeemed atomically and binds mint-time identity`() {
-        val ticket = store.issue(record())
+        val record = aTicketRecord()
+        val ticket = store.issue(record)
         val chain = RecordingChain()
 
         filter.filter(exchange(ticket = ticket), chain).block()
 
         val auth = chain.seenAuthentication as JwtAuthenticationToken
-        assertEquals("user-1", auth.token.claims["sub"])
-        assertEquals(listOf("ROLE_USER"), auth.authorities.map { it.authority })
+        assertEquals(record.sub, auth.token.claims["sub"])
+        assertEquals(record.roles, auth.authorities.map { it.authority })
 
         // single use: the second handshake with the same ticket is rejected pre-upgrade
         val chain2 = RecordingChain()
@@ -142,7 +140,7 @@ class WsTicketRedeemFilterTest {
 
     @Test
     fun `trailing-slash ws path is normalized so the ticket is not wasted`() {
-        val ticket = store.issue(record())
+        val ticket = store.issue(aTicketRecord())
         val chain = RecordingChain()
 
         filter.filter(exchange(path = "/ws/", ticket = ticket), chain).block()
@@ -150,7 +148,4 @@ class WsTicketRedeemFilterTest {
         assertEquals(true, chain.called)
         assert(chain.seenAuthentication is JwtAuthenticationToken) { "identity must be bound on /ws/ too" }
     }
-
-    private fun record() =
-        TicketRecord("user-1", "sid-1", Instant.now().plusSeconds(300), listOf("ROLE_USER"))
 }
