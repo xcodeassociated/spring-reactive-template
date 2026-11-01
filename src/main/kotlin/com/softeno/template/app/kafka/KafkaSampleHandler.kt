@@ -4,7 +4,6 @@ package com.softeno.template.app.kafka
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.JsonNode
 import com.softeno.template.app.user.notification.CoroutineUserUpdateEmitter
-import com.softeno.template.app.user.notification.ReactiveUserUpdateEmitter
 import com.softeno.template.sample.websocket.Message
 import com.softeno.template.sample.websocket.WebSocketNotificationSender
 import org.apache.commons.logging.LogFactory
@@ -28,7 +27,6 @@ data class KafkaApplicationProperties(val tx: String, val rx: String, val keyclo
 class KafkaSampleController(
     private val props: KafkaApplicationProperties,
     private val ws: WebSocketNotificationSender,
-    private val reactiveUserUpdateEmitter: ReactiveUserUpdateEmitter,
     private val userUpdateEmitter: CoroutineUserUpdateEmitter,
     private val objectMapper: ObjectMapper
 ) {
@@ -41,7 +39,6 @@ class KafkaSampleController(
         val kafkaMessage: KafkaMessage = objectMapper.readValue(record.value().toString(), KafkaMessage::class.java)
 
         ws.broadcast(kafkaMessage.toMessage())
-        reactiveUserUpdateEmitter.broadcast(kafkaMessage.toMessage())
         userUpdateEmitter.broadcast(kafkaMessage.toMessage())
     }
 }

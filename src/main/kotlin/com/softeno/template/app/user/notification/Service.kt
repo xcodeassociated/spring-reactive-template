@@ -10,97 +10,8 @@ import kotlinx.coroutines.isActive
 import org.apache.commons.logging.LogFactory
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.stereotype.Service
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks
 import tools.jackson.databind.ObjectMapper
-import java.time.Duration
 import kotlin.coroutines.cancellation.CancellationException
-
-@Service
-class ReactiveUserUpdateEmitter(
-    private val objectMapper: ObjectMapper,
-) {
-    private val sink: Sinks.Many<ServerSentEvent<String>> = Sinks.many().multicast().onBackpressureBuffer(1, false)
-    private val log = LogFactory.getLog(javaClass)
-
-    fun getSink(): Flux<ServerSentEvent<String>> {
-        val heartbeatFlux = Flux.interval(Duration.ofSeconds(10))
-            .map {
-                ServerSentEvent.builder<String>()
-                    .event("heartbeat")
-                    .data(Message(from = "SYSTEM", to = "ALL", content = "ping").toJson(objectMapper))
-                    .build()
-            }.doOnError {
-                error -> log.warn("[reactive] Heartbeat error", error)
-            }
-
-        val events = sink.asFlux()
-            .doOnSubscribe {
-                log.info("[reactive] New SSE client subscribed")
-            }
-            .doOnCancel {
-                log.info("[reactive] SSE client disconnected")
-            }
-            .doOnTerminate {
-                log.info("[reactive] SSE client terminated")
-            }
-            .doOnError {
-                error -> log.error("Event stream error", error)
-            }
-
-
-        return Flux.merge(heartbeatFlux, events)
-            .doOnCancel {
-                log.info("[reactive] Canceling SSE stream")
-            }
-            .doOnTerminate {
-                log.info("[reactive] Terminating SSE stream")
-            }
-            .onErrorResume { error ->
-                log.error("SSE stream error, sending error event", error)
-                Mono.just(
-                    ServerSentEvent.builder<String>()
-                        .event("error")
-                        .data(Message(from = "SYSTEM", to = "ALL", content = "Connection error: ${error.message}").toJson(objectMapper))
-                        .build()
-                )
-            }
-    }
-
-    fun broadcast(message: Message): Boolean =
-        try {
-            val payload = message.toJson(objectMapper)
-            val sse = ServerSentEvent.builder(payload).event("update").build()
-            val result = sink.tryEmitNext(sse)
-
-            when (result) {
-                Sinks.EmitResult.OK -> {
-                    log.debug("[reactive] Message broadcasted successfully: ${message.content}")
-                    true
-                }
-                Sinks.EmitResult.FAIL_CANCELLED -> {
-                    log.warn("[reactive] Failed to broadcast message - emitter cancelled")
-                    false
-                }
-                Sinks.EmitResult.FAIL_OVERFLOW -> {
-                    log.warn("[reactive] Failed to broadcast message - buffer overflow")
-                    false
-                }
-                Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER -> {
-                    log.warn("[reactive] Failed to broadcast message - no subscribers")
-                    false
-                }
-                else -> {
-                    log.error("[reactive] Failed to broadcast message: $result")
-                    false
-                }
-            }
-        } catch (e: Exception) {
-            log.error("[reactive] Error broadcasting message", e)
-            false
-        }
-}
 
 @Service
 class CoroutineUserUpdateEmitter(
@@ -168,6 +79,4 @@ class CoroutineUserUpdateEmitter(
             log.error("[coroutine] Error broadcasting message", e)
             false
         }
-
-
 }

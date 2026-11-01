@@ -1,7 +1,3 @@
 ###
 GET {{host}}/update/user
 Content-Type: text/event-stream
-
-###
-GET {{host}}/update/user/reactive
-Content-Type: text/event-stream
