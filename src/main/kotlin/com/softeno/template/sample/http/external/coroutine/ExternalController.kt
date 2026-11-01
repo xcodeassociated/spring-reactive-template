@@ -3,8 +3,9 @@ package com.softeno.template.sample.http.external.coroutine
 import com.softeno.template.grpc.SampleGrpcServiceGrpcKt
 import com.softeno.template.grpc.SampleRequest
 import com.softeno.template.sample.http.external.config.ExternalClientConfig
-import com.softeno.template.sample.http.internal.reactive.SampleResponseDto
+import com.softeno.template.sample.http.internal.SampleResponseDto
 import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.apache.commons.logging.LogFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory
@@ -86,9 +87,9 @@ class ExternalController(
     }
 
     @DeleteMapping("/{id}")
-    fun deleteHandler(@PathVariable id: String): Mono<Void> {
-        log.info("[external]: GET id: $id")
-        val response: Mono<Void> = webClient.delete()
+    suspend fun deleteHandler(@PathVariable id: String) {
+        log.info("[external]: DELETE id: $id")
+        webClient.delete()
             .uri("/${id}")
             .retrieve()
             .bodyToMono(Void::class.java)
@@ -98,9 +99,7 @@ class ExternalController(
                 // note: custom exception might be thrown since exception handler is defined
                 rcb.run(it) { Mono.empty() }
             }
-
-        log.info("[external]: received: $response")
-        return response
+            .awaitSingleOrNull()
     }
 
     @GetMapping("/throw-on-fallback/{id}")

@@ -111,7 +111,7 @@ class SecurityConfig {
                     // upgrade (WsTicketRedeemFilter), not by an Authorization header —
                     // browsers cannot send headers on a WebSocket handshake.
                     // /ws-ticket mints those tickets and therefore needs a real bearer.
-                    .pathMatchers("/reactive/**", "/coroutine/**", "/graphql/**", "/external/**").hasAuthority("ROLE_ADMIN")
+                    .pathMatchers("/coroutine/**", "/graphql/**", "/external/**").hasAuthority("ROLE_ADMIN")
                     .pathMatchers("/sample-secured/**", "/minio/**", "/ws/**", "/ws-ticket").authenticated()
             }
             .oauth2ResourceServer { rss ->

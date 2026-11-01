@@ -1,10 +1,11 @@
-package com.softeno.template.sample.http.internal.reactive
+package com.softeno.template.sample.http.internal
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import com.ninjasquad.springmockk.MockkBean
 import com.softeno.template.SoftenoReactiveMongoApp
+import com.softeno.template.app.permission.db.PermissionCoroutineRepository
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository
 import com.softeno.template.app.user.db.UserReactiveRepository
 import com.softeno.template.fixture.PermissionFixture
@@ -48,8 +49,7 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.mongodb.MongoDBContainer
 import org.testcontainers.utility.DockerImageName
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
+
 
 
 @SpringBootTest(
@@ -126,39 +126,31 @@ class ContextLoadsTest : BaseIntegrationTest() {
     }
 }
 
-class ReactivePermissionTestDocument : BaseIntegrationTest() {
+class CoroutinePermissionTest : BaseIntegrationTest() {
 
     @Test
     fun shouldReturnEmptyPermissionResponse() {
-        webTestClient.get().uri("/reactive/permissions")
+        webTestClient.get().uri("/coroutine/permissions")
             .exchange()
             .expectStatus().isOk()
             .expectBody().json("[]")
     }
 }
 
-class ReactivePermissionMockedTestDocument : BaseIntegrationTest(), PermissionFixture {
+class CoroutinePermissionMockedTest : BaseIntegrationTest(), PermissionFixture {
 
     @MockkBean
-    @Order(value = Ordered.HIGHEST_PRECEDENCE)
-    lateinit var permissionsReactiveRepositoryMock: PermissionsReactiveRepository
-
-    @BeforeEach
-    fun initMockkRepository() {
-        every { permissionsReactiveRepositoryMock.deleteAll() }.answers { Mono.empty() }
-    }
+    lateinit var permissionCoroutineRepositoryMock: PermissionCoroutineRepository
 
     @Test
     fun `should return mocked permissions`() {
         // given
         val aPermission = aPermission()
 
-        every { permissionsReactiveRepositoryMock.findAllBy(any()) }.answers {
-            Flux.just(aPermission)
-        }
+        every { permissionCoroutineRepositoryMock.findAllBy(any()) } returns flowOf(aPermission)
 
         // expect
-        webTestClient.get().uri("/reactive/permissions")
+        webTestClient.get().uri("/coroutine/permissions")
             .exchange()
             .expectStatus().isOk()
             .expectBody()

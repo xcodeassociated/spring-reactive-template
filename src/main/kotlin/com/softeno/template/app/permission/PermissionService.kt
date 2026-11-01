@@ -2,7 +2,7 @@ package com.softeno.template.app.permission
 
 import com.softeno.template.app.common.ErrorFactory
 import com.softeno.template.app.common.getPageRequest
-import com.softeno.template.app.permission.api.reactive.PermissionsReactiveMongoTemplate
+import com.softeno.template.app.permission.db.PermissionsReactiveMongoTemplate
 import com.softeno.template.app.permission.db.PermissionCoroutineRepository
 import com.softeno.template.app.permission.db.PermissionDocument
 import com.softeno.template.app.permission.db.PermissionsReactiveRepository

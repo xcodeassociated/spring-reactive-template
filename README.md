@@ -10,7 +10,7 @@ A **service template** for quickly starting new backend applications — not an 
 
 - **Prototype fast** — clone, `docker compose up`, and you have a secured CRUD service with auth, messaging, and a database.
 - **Everything runs locally** — Keycloak, Kafka, and MongoDB come up via Docker Compose with pre-created topics and a configured event bridge.
-- **Two idioms side by side** — most capabilities are demonstrated in *both* Reactor (`Flux`/`Mono`) and Kotlin coroutines (`Flow`/`suspend`), so you pick the style you like and delete the other.
+- **Coroutine-first** — endpoints and services are written with Kotlin coroutines (`Flow`/`suspend`) on top of the reactive WebFlux stack; the reactive APIs (transport, Mongo repositories, `WebClient`) are the plumbing under coroutines, not a parallel feature flavor.
 - **Features are decoupled** — each optional feature lives in its own package/config with its own dependencies and properties. Removing one is a delete + a few lines in `build.gradle`, not surgery. See [Removing features](#removing-features) for the small number of known coupling points.
 
 ---
@@ -36,7 +36,7 @@ SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 
 | Endpoint | URL |
 |---|---|
-| REST / WebFlux / GraphQL / SSE | http://localhost:8080 |
+| REST / GraphQL / SSE | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | GraphiQL | http://localhost:8080/graphiql |
 | Actuator / Prometheus | http://localhost:8080/actuator |
@@ -85,7 +85,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   │   ├── permission/           # example domain: CRUD over REST, coroutines & GraphQL
 │   │   └── user/                 # example domain + SSE update streams (notification/)
 │   └── sample/                   # ← feature demos; delete together with their references in app/
-│       ├── http/                 # WebFlux controller & functional router, external WebClient + circuit breaker
+│       ├── http/                 # coroutine controller & functional router, external WebClient + circuit breaker
 │       ├── proto/                # gRPC server service & client channel config
 │       └── websocket/            # coroutine WebSocket handlers + one-time-ticket auth (api/config/security sub-packages)
 └── src/test/kotlin/              # MockK unit tests, Testcontainers (Mongo/Kafka) & WireMock integration tests
@@ -96,7 +96,7 @@ Everything under `sample/` and the `user`/`permission` domains are **examples** 
 ## Features
 
 ### Always-on core
-- **WebFlux + Kotlin coroutines** — both styles configured (`reactor-kotlin-extensions`, `kotlinx-coroutines-reactor`), automatic context propagation.
+- **WebFlux + Kotlin coroutines** — coroutine-first endpoints/services (`kotlinx-coroutines-reactor`, `reactor-kotlin-extensions`), automatic context propagation; the reactive stack is the infrastructure beneath coroutines.
 - **Reactive MongoDB** — reactive repositories, `auto-index-creation`, optimistic locking (`version`), auditing (`createdBy`/`modifiedBy` from the JWT subject via `ReactiveMongoAuditorConfig`), `BaseDocument` common interface.
 - **Keycloak / OAuth2 security** — JWT resource server, `realm_access` roles mapped to Spring authorities, method security, CORS config, per-path authorization rules in one file (`SecurityConfig.kt`).
 - **Global error handling** — `WebExceptionHandler` + common `BaseException`/`ErrorFactory` pattern.
@@ -108,7 +108,7 @@ Everything under `sample/` and the `user`/`permission` domains are **examples** 
 - **GraphQL** — spring-graphql controllers for both domains, GraphiQL enabled.
 - **gRPC** — Kotlin coroutine stubs generated from `schema.proto`, server with reflection, named client channels.
 - **WebSockets** — coroutine implementation (`com.softeno.ws.enabled`), with heartbeat, stale-session sweeper, one-time-ticket browser auth (§ [WebSocket chat auth](#websocket-chat-auth-one-time-ticket)), and token-expiry/logout close codes.
-- **Server-Sent Events** — reactive and coroutine user-update emitters (`app/user/notification`).
+- **Server-Sent Events** — coroutine user-update emitter (`app/user/notification`).
 - **Resilience4j circuit breaker** — wrapping an external `WebClient` call.
 - **OpenAPI** — springdoc Swagger UI.
 - **Observability** — Actuator + Prometheus, OpenTelemetry traces/metrics/logs over OTLP, trace-correlated logging.
@@ -128,7 +128,6 @@ The build file groups dependencies under comment headers (`// kafka`, `// graphq
 | OpenAPI | — | `// springdoc` deps, `springdoc.*` props |
 | OpenTelemetry | `config/opentelemetry/` | otel deps, `management.opentelemetry.*` props, simplify `logback-spring.xml` |
 | Security | `config/security/SecurityConfig.kt` (replace with permit-all) | `// security` deps, `spring.security.*` / OAuth props |
-| Coroutines *or* Reactor flavor | the `reactive/` (or coroutine) halves of any package | — |
 
 Apart from four coupling points listed above (`app/kafka/KafkaSampleHandler.kt`, `app/user/notification/Service.kt`, `app/config/http/WebExceptionHandler.kt`, `app/user/api/GraphqlController.kt` import from `sample/`), features don't import each other, so deletions don't cascade. Removing a feature's references, security rules, and properties is enough to keep the app compiling. (`app/kafka/KafkaKeycloakController.kt` also imports the WebSocket sender — it belongs to the same Kafka↔WebSockets coupling point as `KafkaSampleHandler.kt`.)
 

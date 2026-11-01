@@ -8,14 +8,12 @@ import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import reactor.core.publisher.Flux
 
 
 @RestController
 @RequestMapping("/update/")
 @Validated
 class UpdateController(
-    val reactiveEmitter: ReactiveUserUpdateEmitter,
     val coroutineEmitter: CoroutineUserUpdateEmitter,
 ) {
 
@@ -27,15 +25,5 @@ class UpdateController(
             set("X-Accel-Buffering", "no")
         }
         return coroutineEmitter.getFlow()
-    }
-
-    @GetMapping("/user/reactive", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
-    fun getUserUpdate(response: ServerHttpResponse): Flux<ServerSentEvent<String>> {
-        response.headers.apply {
-            set("Cache-Control", "no-cache, no-store, must-revalidate")
-            set("Connection", "keep-alive")
-            set("X-Accel-Buffering", "no")
-        }
-        return reactiveEmitter.getSink()
     }
 }
