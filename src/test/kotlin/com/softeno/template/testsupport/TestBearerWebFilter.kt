@@ -1,4 +1,4 @@
-package com.softeno.template.sample.websocket
+package com.softeno.template.testsupport
 
 import org.springframework.context.annotation.Profile
 import org.springframework.core.Ordered
