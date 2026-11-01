@@ -6,6 +6,7 @@ plugins {
 	id 'org.jetbrains.kotlin.kapt' version '2.4.20'
 	id 'com.google.osdetector' version '1.7.3'
 	id 'com.google.protobuf' version '0.10.0'
+	id 'org.jetbrains.kotlinx.kover' version '0.9.11'
 	id 'groovy'
 	id 'application'
 }
@@ -169,4 +170,20 @@ protobuf {
 			}
 		}
 	}
+}
+// coverage — `./gradlew koverHtmlReport` (build/reports/kover/html) or koverXmlReport
+kover {
+    reports {
+        total {
+            filters {
+                excludes {
+                    classes(
+                        'com.softeno.template.grpc.*', // generated protobuf/gRPC stubs
+                        'com.softeno.template.SoftenoReactiveMongoAppKt',
+                        'com.softeno.template.SpringApplicationReadyEventListener'
+                    )
+                }
+            }
+        }
+    }
 }

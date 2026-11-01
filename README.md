@@ -80,8 +80,8 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 ├── src/main/kotlin/com/softeno/template/
 │   ├── SoftenoReactiveMongoApp.kt
 │   ├── users/                    # ← APPLICATION CORE: user + permission (db documents), event publish
-│   │   ├── UserService.kt        # documents in/out, UserWithPermissions read tuple; ends at UserEventsPublisher
-│   │   ├── UserEvents.kt         # UserEvent + publisher — the core→notifications boundary (Kafka tx)
+│   │   ├── UserService.kt        # documents in/out; permissions embedded as snapshots (ADR-0005); ends at UserEventsPublisher
+│   │   ├── UserEvents.kt         # UserCreatedEvent + publisher — the core→notifications boundary (Kafka tx)
 │   │   ├── api/                  # REST controllers + DTOs, GraphQL controller
 │   │   ├── db/                   # UserDocument + repositories
 │   │   └── permission/           # permission documents, service, REST/GraphQL api
@@ -95,7 +95,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   ├── sample/                   # ← feature demos; delete freely
 │   │   ├── http/                 # coroutine controller & functional router, external WebClient + circuit breaker
 │   │   └── proto/                # gRPC server service & client channel config
-│   ├── common/                   # BaseDocument (id/version/audit), errors, principal utils
+│   ├── common/                   # BaseDocument (id/version/audit), errors, paging utils
 │   └── config/                   # SecurityConfig, Mongo auditing, error handling, OTel, Kafka wiring
 └── src/test/kotlin/              # tests mirror main packages — integration tests end in IT.kt (Testcontainers/WireMock), unit tests in Test.kt
 ```
@@ -109,7 +109,7 @@ Everything under `sample/` and the `users`/`permission` domains are **examples**
 - **Reactive MongoDB** — reactive repositories, `auto-index-creation`, optimistic locking (`version`), auditing (`createdBy`/`modifiedBy` from the JWT subject via `ReactiveMongoAuditorConfig`), `BaseDocument` common interface.
 - **Keycloak / OAuth2 security** — JWT resource server, `realm_access` roles mapped to Spring authorities, method security, CORS config, per-path authorization rules in one file (`SecurityConfig.kt`).
 - **Global error handling** — `WebExceptionHandler` + common `BaseException`/`ErrorFactory` pattern.
-- **Testing** — JUnit 5, MockK/springmockk, `WebTestClient`, GraphQL test support, Testcontainers (Mongo + Kafka), WireMock for external HTTP, fixtures for test data, static `R` utility generating random test data; integration tests end in `IT`.
+- **Testing** — JUnit 5, MockK/springmockk, `WebTestClient`, GraphQL test support, Testcontainers (Mongo + Kafka), WireMock for external HTTP, fixtures for test data, static `R` utility generating random test data; integration tests end in `IT`. Coverage via Kover: `./gradlew koverHtmlReport` (generated gRPC stubs excluded from the report).
 - **Packaging & CI** — Gradle wrapper, CI build+test on every branch/PR, multi-arch (`amd64`/`arm64`) image pushed from `main`, Dependabot dependency graph.
 
 ### Optional (each independently removable)
@@ -128,13 +128,13 @@ The build file groups dependencies under comment headers (`// kafka`, `// graphq
 | Feature | Delete | Also remove |
 |---|---|---|
 | Kafka | `config/kafka/` + `users/UserEvents.kt` + `notifications/kafka/` | `// kafka` deps, `spring.kafka.*` + `com.softeno.kafka.*` props, compose services, the `userEventsPublisher.publishUserCreated` call in `UserService` |
-| GraphQL | `*GraphqlController.kt` files | `// graphql` deps, `resources/graphql/`, `spring.graphql.*` props |
+| GraphQL | `users/api/UserGraphqlController.kt`, `users/permission/api/PermissionGraphqlController.kt`, `config/graphql/` | `// graphql` deps, `resources/graphql/`, `spring.graphql.*` props |
 | gRPC | `sample/proto/`, `src/main/proto/` | `// grpc` deps + protobuf plugin in `build.gradle`, `spring.grpc.*` props |
 | Notifications (whole feature) | `notifications/` | `com.softeno.{ws,sse,ticket}.*` props, `/ws/**` + `/ws-ticket` + `/sse-ticket` + `/update/**` security rules, `web/chat.html` + `web/sse.html`, `http/ws.http` + `http/update.http` |
 | — WebSocket adapter only | `notifications/ws/`, `web/chat.html` | `com.softeno.ws.*` props, `/ws/**` + `/ws-ticket` rules; the `List<Notification>` wiring needs no change (ADR-0004) |
 | — SSE adapter only | `notifications/sse/`, `web/sse.html` | `com.softeno.sse.*` props, `/update/**` + `/sse-ticket` rules, `http/update.http` |
 | — One-time tickets | `notifications/ticket/` | only after both transports above are removed; `com.softeno.ticket.*` props, `/ws-ticket` + `/sse-ticket` rules |
-| Circuit breaker / external client | `sample/http/external/` | `// circuit breaker` dep, `com.softeno.external.*` props, references in `config/http/WebExceptionHandler.kt` + the `externalGraphQl` bean in `users/api/GraphqlController.kt` |
+| Circuit breaker / external client | `sample/http/external/` | `// circuit breaker` dep, `com.softeno.external.*` props, references in `config/http/WebExceptionHandler.kt` (the `externalGraphQl` bean itself lives in `sample/http/external/config/` now) |
 | OpenAPI | — | `// springdoc` deps, `springdoc.*` props |
 | OpenTelemetry | `config/opentelemetry/` | otel deps, `management.opentelemetry.*` props, simplify `logback-spring.xml` |
 | Security | `config/security/SecurityConfig.kt` (replace with permit-all) | `// security` deps, `spring.security.*` / OAuth props |
@@ -242,6 +242,7 @@ Significant design decisions are recorded in [`docs/adr/`](docs/adr):
 | [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md) | SSE auth via shared one-time tickets + stream lifecycle (transport-bound tickets, close-at-exp `token_expired`, logout `logged_out`) | Accepted |
 | [ADR-0003](docs/adr/0003-application-structure-users-notifications-sample.md) | Application structure: `users` core → Kafka → optional `notifications` feature, `sample` demos; no domain wrapper classes | Accepted |
 | [ADR-0004](docs/adr/0004-notifications-hexagon-port-adapters.md) | Notifications hexagon: one `Notification` port, ws + sse adapters, listeners on the port only | Accepted |
+| [ADR-0005](docs/adr/0005-embedded-permission-snapshots-fanout.md) | Permissions embedded in users as snapshots, with fan-out on permission update/delete (supersedes ADR-0003's read tuple) | Accepted |
 
 ADRs are **immutable** once accepted: when a decision or flow changes, do not rewrite
 history — add a new numbered ADR explaining the new context and decision, and mark the

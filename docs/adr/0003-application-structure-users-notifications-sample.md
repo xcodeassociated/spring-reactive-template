@@ -1,6 +1,6 @@
 # ADR-0003: Application structure — users core, notifications feature, sample demos
 
-- **Status:** Accepted
+- **Status:** Accepted (the `UserWithPermissions` read-tuple detail is superseded by ADR-0005)
 - **Date:** 2026-11-01
 - **Context:** The template grew organically (`app/` vs `sample/` split, notification code under `app/user/notification`, WebSocket demo under `sample/websocket`, Kafka plumbing shared between them). Feature removal and responsibility ownership were hard to see. Supersedes the package layout described in ADR-0001/ADR-0002 (their decisions stand).
 
@@ -29,13 +29,13 @@ com.softeno.template
 ├── notifications/  # OPTIONAL feature — one port (Notification), ws + sse adapters,
 │                   # shared ticket auth, Kafka listeners (user events, Keycloak LOGOUT)
 ├── sample/         # removable feature demos (http, proto) — no longer contains websocket
-├── common/         # BaseDocument, errors, principal utils (infrastructure)
+├── common/         # BaseDocument, errors, paging utils (infrastructure)
 └── config/         # security, http, opentelemetry, kafka wiring (infrastructure)
 ```
 
 - **users (core):** owns `UserDocument`/`PermissionDocument` and the services over
   them — **no domain wrapper classes, the db documents are the model**. Its write
-  path ENDS at publishing a `UserEvent` to Kafka (`UserEventsPublisher`, tx topic).
+  path ENDS at publishing a `UserCreatedEvent` to Kafka (`UserEventsPublisher`, tx topic).
   The core does not know transports, tickets, or SSE/WS exist.
 - **notifications:** consumes the core's events (rx topic) and Keycloak auth events,
   and translates them into the transports' languages. Optional: delete the package (plus
@@ -67,7 +67,7 @@ sequenceDiagram
     C->>U: POST /users
     U->>DB: save UserDocument
     DB-->>U: saved (id, version, audit)
-    U--)K: UserEvent "USER_CREATED: id"   (end of core)
+    U--)K: UserCreatedEvent(userId)   (end of core)
     U-->>C: 200 user dto
     K--)N: rx listener
     N->>N: broadcast through every Notification adapter
@@ -122,7 +122,7 @@ sequenceDiagram
 **Negative / accepted costs**
 - Big-bang rename — one commit, no behavior change; API contracts (REST/GraphQL JSON,
   WS wire format, SSE events) are byte-identical.
-- The integration event type (`UserEvent`) lives with the core; `config/kafka` and
+- The integration event type (`UserCreatedEvent`) lives with the core; `config/kafka` and
   `notifications` reference it — an accepted, one-directional dependency.
 - `tx`/`rx` topic names keep their historical env-var names; the ADR documents their
   semantics: tx = core publishes, rx = notifications consumes.

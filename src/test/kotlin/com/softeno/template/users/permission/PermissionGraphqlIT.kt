@@ -1,8 +1,9 @@
 package com.softeno.template.users.permission
 
 import com.softeno.template.testsupport.BaseIntegrationTest
-import kotlinx.coroutines.reactor.awaitSingle
+import com.softeno.template.testsupport.R
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.graphql.test.tester.GraphQlTester
@@ -20,7 +21,7 @@ class PermissionGraphqlIT : BaseIntegrationTest(), PermissionFixture {
     fun `should get permissions`() {
         // given
         val aPermission = runBlocking {
-            permissionsReactiveRepository.save(aPermissionToSave()).awaitSingle()
+            permissionRepository.save(aPermissionToSave())
         }
 
         val query = """
@@ -42,5 +43,18 @@ class PermissionGraphqlIT : BaseIntegrationTest(), PermissionFixture {
             .execute()
             .path("getAllPermissions")
             .matchesJson(expected)
+    }
+
+    @Test
+    fun `query of unknown permission returns a graphql error`() {
+        // covers the global GraphqlExceptionHandler mapping of BaseExceptions
+        graphQlTester.document("""{ getPermission(id: "${R.objectId()}") { name } }""")
+            .execute()
+            .errors()
+            .satisfy { errors ->
+                assertTrue(errors.any { it.message?.contains("Permission not found") == true }) {
+                    "expected the mapped PermissionNotFoundException, got: $errors"
+                }
+            }
     }
 }

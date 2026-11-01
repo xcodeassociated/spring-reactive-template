@@ -1,23 +1,18 @@
 package com.softeno.template.users.permission.api
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.softeno.template.users.permission.db.PermissionDocument
 import com.softeno.template.users.permission.PermissionModifyCommand
 import com.softeno.template.users.permission.PermissionService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
-import java.time.LocalDateTime
-
 
 @RestController
 @RequestMapping("/coroutine/")
 @Validated
-class CoroutinePermissionController(
-    val permissionService: PermissionService
+class PermissionController(
+    private val permissionService: PermissionService
 ) {
-    //    @PreAuthorize(value = "hasRole('admin')")
     @GetMapping("/permissions")
     suspend fun getAllPermissions(
         @RequestParam(required = false, defaultValue = "0") page: Int,
@@ -27,7 +22,7 @@ class CoroutinePermissionController(
     ): Flow<PermissionDto> = permissionService.getAll(page, size, sort, direction).map { it.toDto() }
 
     @GetMapping("/permissions/{id}")
-    suspend fun getPermission(@PathVariable id: String): PermissionDto? =
+    suspend fun getPermission(@PathVariable id: String): PermissionDto =
         permissionService.get(id).toDto()
 
     @DeleteMapping("/permissions/{id}")
@@ -45,26 +40,3 @@ class CoroutinePermissionController(
     ): PermissionDto =
         permissionService.update(id, input).toDto()
 }
-
-data class PermissionDto(
-    @param:JsonProperty("_id")
-    val id: String?,
-    val name: String,
-    val description: String,
-    val version: Long?,
-    val createdBy: String?,
-    val createdDate: LocalDateTime?,
-    val modifiedBy: String?,
-    val modifiedDate: LocalDateTime?
-)
-
-fun PermissionDocument.toDto(): PermissionDto = PermissionDto(
-    id = this.id,
-    name = this.name,
-    description = this.description,
-    version = this.version,
-    createdBy = this.createdBy,
-    createdDate = this.createdDate,
-    modifiedBy = this.modifiedBy,
-    modifiedDate = this.modifiedDate
-)

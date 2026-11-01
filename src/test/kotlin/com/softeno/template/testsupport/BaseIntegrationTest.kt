@@ -1,9 +1,8 @@
 package com.softeno.template.testsupport
 
 import com.softeno.template.SoftenoReactiveMongoApp
-import com.softeno.template.users.permission.db.PermissionsReactiveRepository
-import com.softeno.template.users.db.UserReactiveRepository
-import kotlinx.coroutines.reactive.awaitFirstOrNull
+import com.softeno.template.users.db.UserRepository
+import com.softeno.template.users.permission.db.PermissionRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.TestInstance
@@ -77,16 +76,16 @@ abstract class BaseIntegrationTest {
     lateinit var webTestClient: WebTestClient
 
     @Autowired
-    lateinit var userReactiveRepository: UserReactiveRepository
+    lateinit var userRepository: UserRepository
 
     @Autowired
-    lateinit var permissionsReactiveRepository: PermissionsReactiveRepository
+    lateinit var permissionRepository: PermissionRepository
 
     @AfterEach
     fun cleanup() {
         runBlocking {
-            userReactiveRepository.deleteAll().awaitFirstOrNull()
-            permissionsReactiveRepository.deleteAll().awaitFirstOrNull()
+            userRepository.deleteAll()
+            permissionRepository.deleteAll()
         }
     }
 }

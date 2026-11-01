@@ -1,8 +1,9 @@
 package com.softeno.template.users.permission
 
 import com.ninjasquad.springmockk.MockkBean
-import com.softeno.template.users.permission.db.PermissionCoroutineRepository
+import com.softeno.template.users.permission.db.PermissionRepository
 import com.softeno.template.testsupport.BaseIntegrationTest
+import io.mockk.coEvery
 import io.mockk.every
 import kotlinx.coroutines.flow.flowOf
 import org.junit.jupiter.api.Test
@@ -14,14 +15,15 @@ import org.junit.jupiter.api.Test
 class PermissionApiMockedIT : BaseIntegrationTest(), PermissionFixture {
 
     @MockkBean
-    lateinit var permissionCoroutineRepositoryMock: PermissionCoroutineRepository
+    lateinit var permissionRepositoryMock: PermissionRepository
 
     @Test
     fun `should return mocked permissions`() {
         // given
         val aPermission = aPermission()
 
-        every { permissionCoroutineRepositoryMock.findAllBy(any()) } returns flowOf(aPermission)
+        every { permissionRepositoryMock.findAllBy(any()) } returns flowOf(aPermission)
+        coEvery { permissionRepositoryMock.deleteAll() } returns Unit // the @AfterEach cleanup wipe
 
         // expect
         webTestClient.get().uri("/coroutine/permissions")

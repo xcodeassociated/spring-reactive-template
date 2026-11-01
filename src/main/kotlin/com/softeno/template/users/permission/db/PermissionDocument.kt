@@ -1,15 +1,9 @@
 package com.softeno.template.users.permission.db
 
 import com.softeno.template.common.BaseDocument
-import kotlinx.coroutines.flow.Flow
 import org.springframework.data.annotation.*
-import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
-import org.springframework.data.mongodb.repository.ReactiveMongoRepository
-import org.springframework.data.repository.kotlin.CoroutineCrudRepository
-import org.springframework.stereotype.Repository
-import reactor.core.publisher.Flux
 import java.time.LocalDateTime
 import kotlin.reflect.KClass
 
@@ -21,14 +15,14 @@ data class PermissionDocument(
     @CreatedDate
     override var createdDate: LocalDateTime?,
 
-    @LastModifiedDate
-    var lastModifiedDate: LocalDateTime?,
-
     @CreatedBy
     var createdByUser: String?,
 
     @LastModifiedBy
     var modifiedByUser: String?,
+
+    @LastModifiedDate
+    var lastModifiedDate: LocalDateTime?,
 
     @Version
     override var version: Long?,
@@ -53,16 +47,4 @@ data class PermissionDocument(
     @get:Transient
     override val clazz: KClass<out PermissionDocument>
         get() = this::class
-}
-
-@Repository
-interface PermissionCoroutineRepository :
-    CoroutineCrudRepository<PermissionDocument, String> {
-    fun findAllBy(pageable: Pageable): Flow<PermissionDocument>
-}
-
-@Repository
-interface PermissionsReactiveRepository : ReactiveMongoRepository<PermissionDocument, String> {
-    fun findAllBy(pageable: Pageable): Flux<PermissionDocument>
-    fun findByIdIn(ids: Set<String>): Flux<PermissionDocument>
 }
