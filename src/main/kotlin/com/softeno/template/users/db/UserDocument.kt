@@ -1,16 +1,10 @@
 package com.softeno.template.users.db
 
 import com.softeno.template.common.BaseDocument
-import kotlinx.coroutines.flow.Flow
+import com.softeno.template.users.permission.db.PermissionDocument
 import org.springframework.data.annotation.*
-import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
-import org.springframework.data.mongodb.repository.ReactiveMongoRepository
-import org.springframework.data.repository.kotlin.CoroutineCrudRepository
-import org.springframework.stereotype.Repository
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 import java.time.LocalDateTime
 import kotlin.reflect.KClass
 
@@ -39,7 +33,13 @@ data class UserDocument(
     @Indexed(unique = true)
     val email: String,
 
-    val permissions: Set<String>
+    /**
+     * Embedded permission snapshots (ADR-0005): reads never join, and
+     * `UserPermissionSync` propagates permission updates/deletes into every
+     * user holding a copy. A dedicated plain type — embedding PermissionDocument
+     * would leak its @Indexed/@Id mapping annotations into the user collection.
+     */
+    val permissions: Set<PermissionSnapshot>
 ) : BaseDocument {
     @get:Transient
     override val createdBy: String?
@@ -58,14 +58,36 @@ data class UserDocument(
         get() = this::class
 }
 
-@Repository
-interface UserCoroutineRepository : CoroutineCrudRepository<UserDocument, String> {
-    fun findAllBy(pageable: Pageable): Flow<UserDocument>
-    suspend fun findByIdAndVersion(id: String, version: Long): UserDocument?
-}
+/**
+ * Write-time copy of a permission, embedded in [UserDocument.permissions].
+ * The id field is deliberately named `permissionId`: a property named `id` would
+ * be treated as the nested document's _id and the fan-out query could not address
+ * it as a plain string (ADR-0005).
+ */
+data class PermissionSnapshot(
+    val permissionId: String,
+    val name: String,
+    val description: String,
+    val version: Long?,
+    val createdBy: String?,
+    val createdDate: LocalDateTime?,
+    val modifiedBy: String?,
+    val modifiedDate: LocalDateTime?,
+) {
+    /** Convenience accessor for GraphQL/DTO mappings — not persisted (no backing field). */
+    val id: String
+        get() = permissionId
 
-@Repository
-interface UserReactiveRepository : ReactiveMongoRepository<UserDocument, String> {
-    fun findAllBy(pageable: Pageable): Flux<UserDocument>
-    fun findByIdAndVersion(id: String, version: Long): Mono<UserDocument>
+    companion object {
+        fun of(permission: PermissionDocument) = PermissionSnapshot(
+            permissionId = permission.id!!,
+            name = permission.name,
+            description = permission.description,
+            version = permission.version,
+            createdBy = permission.createdBy,
+            createdDate = permission.createdDate,
+            modifiedBy = permission.modifiedBy,
+            modifiedDate = permission.modifiedDate,
+        )
+    }
 }

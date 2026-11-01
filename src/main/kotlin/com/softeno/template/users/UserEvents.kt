@@ -12,17 +12,17 @@ import org.springframework.stereotype.Component
  * the core never knows which transports exist.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class UserEvent(val content: String)
+data class UserCreatedEvent(val userId: String)
 
 @Component
 class UserEventsPublisher(
-    private val producer: KafkaTemplate<String, UserEvent>,
+    private val producer: KafkaTemplate<String, UserCreatedEvent>,
     private val props: KafkaApplicationProperties,
 ) {
     private val log = LogFactory.getLog(javaClass)
 
-    fun publishUserCreated(id: String) {
-        val event = UserEvent(content = "USER_CREATED: $id")
+    fun publishUserCreated(userId: String) {
+        val event = UserCreatedEvent(userId)
         log.info("[kafka] tx (${props.tx}): $event")
         producer.send(props.tx, event)
     }

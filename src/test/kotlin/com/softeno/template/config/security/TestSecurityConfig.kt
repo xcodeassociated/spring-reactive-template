@@ -12,7 +12,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain
 @EnableWebFluxSecurity
 @Configuration
 @Profile(value = ["integration"])
-class SecurityConfig {
+class TestSecurityConfig {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
