@@ -31,8 +31,10 @@ class ExampleWebFilter : WebFilter {
         val headers = serverWebExchange.request.headers
         val uri = serverWebExchange.request.uri
         val queryParams = serverWebExchange.request.queryParams
-        log.trace("Incoming request uri: $uri")
-        log.trace("Incoming request queryParams: $queryParams")
+        // never log single-use WebSocket handshake tickets (or any credential) even at trace
+        val safeQuery = queryParams.filterKeys { it != "ticket" }
+        log.trace("Incoming request uri: ${uri?.run { "$scheme://$host$port$path" }}")
+        log.trace("Incoming request queryParams: $safeQuery")
         log.trace("Incoming request headers: $headers")
 
         serverWebExchange.getResponse().getHeaders().add("custom-header", "XD");

@@ -42,10 +42,11 @@ SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 | Actuator / Prometheus | http://localhost:8080/actuator |
 | gRPC server (reflection enabled) | localhost:9080 |
 | Keycloak (admin/admin) | http://localhost:8090 |
+| Chat dev page (WebSocket + ticket auth) | http://localhost:8080/chat/chat.html (or serve `chat/` from :3000) |
 
 Profiles: `local` (dev, OTLP export disabled), `docker` (used by the image), `integration` (test security bypass).
 
-Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-client.env.template.json` to `http-client.env.json` and fill in credentials. `http/auth.http` fetches Keycloak tokens; `http/keycloak.http`, `http/sample.http`, etc. exercise the endpoints.
+Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-client.env.template.json` to `http-client.env.json` and fill in credentials. `http/auth.http` fetches Keycloak tokens; `http/keycloak.http`, `http/sample.http`, `http/ws.http` (WebSocket ticket mint + chat frames), etc. exercise the endpoints.
 
 ## Infrastructure (docker-compose.yml)
 
@@ -63,6 +64,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   └── build-and-upload.yml      # build, multi-arch Docker image push, dependency graph (Dependabot)
 ├── docker-compose.yml            # Kafka + Keycloak/Postgres + MongoDB replica set
 ├── Dockerfile                    # Temurin 24 JRE image (built jar)
+├── docs/adr/                     # architecture decision records (immutable; supersede with a new ADR)
 ├── init_volumes.sh               # creates compose bind-mount directories
 ├── http/                         # IntelliJ HTTP client requests + env templates
 ├── tunnels/                      # SSH tunnel scripts/config (optional)
@@ -73,6 +75,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   ├── config/env.properties     # local secrets/URLs (from template — keep out of git)
 │   ├── graphql/schema.graphqls   # GraphQL schema
 │   └── logback-spring.xml        # OTel log appender config
+├── chat/chat.html                # static dev tool: browser chat over ticket-auth WebSocket (served at /chat/)
 ├── src/main/kotlin/com/softeno/template/
 │   ├── SoftenoReactiveMongoApp.kt
 │   ├── app/                      # ← reusable building blocks
@@ -84,7 +87,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   └── sample/                   # ← feature demos; delete together with their references in app/
 │       ├── http/                 # WebFlux controller & functional router, external WebClient + circuit breaker
 │       ├── proto/                # gRPC server service & client channel config
-│       └── websocket/            # coroutine & reactive WebSocket handlers with heartbeat
+│       └── websocket/            # coroutine WebSocket handlers + one-time-ticket auth (api/config/security sub-packages)
 └── src/test/kotlin/              # MockK unit tests, Testcontainers (Mongo/Kafka) & WireMock integration tests
 ```
 
@@ -104,7 +107,7 @@ Everything under `sample/` and the `user`/`permission` domains are **examples** 
 - **Kafka** — JSON serializer/deserializer config, sample tx/rx topics, Keycloak auth-event consumer.
 - **GraphQL** — spring-graphql controllers for both domains, GraphiQL enabled.
 - **gRPC** — Kotlin coroutine stubs generated from `schema.proto`, server with reflection, named client channels.
-- **WebSockets** — two interchangeable implementations (coroutine / reactive) selected by `com.softeno.ws.type`, with heartbeat and stale-session sweeper.
+- **WebSockets** — coroutine implementation (`com.softeno.ws.enabled`), with heartbeat, stale-session sweeper, one-time-ticket browser auth (§ [WebSocket chat auth](#websocket-chat-auth-one-time-ticket)), and token-expiry/logout close codes.
 - **Server-Sent Events** — reactive and coroutine user-update emitters (`app/user/notification`).
 - **Resilience4j circuit breaker** — wrapping an external `WebClient` call.
 - **OpenAPI** — springdoc Swagger UI.
@@ -119,7 +122,7 @@ The build file groups dependencies under comment headers (`// kafka`, `// graphq
 | Kafka | `app/kafka/` | `// kafka` deps, `spring.kafka.*` + `com.softeno.kafka.*` props, compose services |
 | GraphQL | `*GraphqlController.kt` files | `// graphql` deps, `resources/graphql/`, `spring.graphql.*` props |
 | gRPC | `sample/proto/`, `src/main/proto/` | `// grpc` deps + protobuf plugin in `build.gradle`, `spring.grpc.*` props |
-| WebSockets | `sample/websocket/` | `com.softeno.ws.*` props, `/ws/**` security rule, references in `app/kafka/KafkaSampleHandler.kt` + `app/user/notification/` |
+| WebSockets | `sample/websocket/` and `chat/` | `com.softeno.ws.*` props (`com.softeno.ws.enabled` toggle), `/ws/**` + `/ws-ticket` + `/chat/**` security rules, references in `app/kafka/KafkaSampleHandler.kt` + `app/kafka/KafkaKeycloakController.kt` + `app/user/notification/` |
 | SSE | `app/user/notification/` | `/update/**` security rule |
 | Circuit breaker / external client | `sample/http/external/` | `// circuit breaker` dep, `com.softeno.external.*` props, references in `app/config/http/WebExceptionHandler.kt` + the `externalGraphQl` bean in `app/user/api/GraphqlController.kt` |
 | OpenAPI | — | `// springdoc` deps, `springdoc.*` props |
@@ -127,11 +130,77 @@ The build file groups dependencies under comment headers (`// kafka`, `// graphq
 | Security | `config/security/SecurityConfig.kt` (replace with permit-all) | `// security` deps, `spring.security.*` / OAuth props |
 | Coroutines *or* Reactor flavor | the `reactive/` (or coroutine) halves of any package | — |
 
-Apart from four coupling points listed above (`app/kafka/KafkaSampleHandler.kt`, `app/user/notification/Service.kt`, `app/config/http/WebExceptionHandler.kt`, `app/user/api/GraphqlController.kt` import from `sample/`), features don't import each other, so deletions don't cascade. Removing a feature's references, security rules, and properties is enough to keep the app compiling.
+Apart from four coupling points listed above (`app/kafka/KafkaSampleHandler.kt`, `app/user/notification/Service.kt`, `app/config/http/WebExceptionHandler.kt`, `app/user/api/GraphqlController.kt` import from `sample/`), features don't import each other, so deletions don't cascade. Removing a feature's references, security rules, and properties is enough to keep the app compiling. (`app/kafka/KafkaKeycloakController.kt` also imports the WebSocket sender — it belongs to the same Kafka↔WebSockets coupling point as `KafkaSampleHandler.kt`.)
+
+## WebSocket chat auth (one-time ticket)
+
+Decision record with sequence diagrams and alternatives: [ADR-0001](docs/adr/0001-websocket-one-time-ticket-auth.md).
+
+Browsers cannot send an `Authorization` header on a WebSocket upgrade (the `WebSocket`
+constructor takes only a URL), so `/ws` authenticates with a **single-use ticket**
+instead — never `?access_token=`, which RFC 9700 §4.3.2 forbids.
+
+1. `POST /ws-ticket` with a normal bearer JWT → `{ "ticket": "...", "expiresIn": 10 }`.
+   The ticket is 256-bit SecureRandom; the server stores only its **SHA-256** mapped to
+   the mint-time claims (`sub`, `sid`, `exp`, roles) with a 10 s TTL.
+2. `new WebSocket("ws://localhost:8080/ws?ticket=...")`. The ticket is redeemed
+   **before the handshake completes** with an atomic compare-and-delete; the bound
+   identity is put into the reactive security context for the handler.
+3. Failures, pre-upgrade: **401** missing/expired/replayed ticket,
+   **403** Origin not in `com.softeno.ws.allowed-origins` (CSWSH defense; CORS
+   config does *not* protect WebSocket handshakes).
+
+**Client contract** (wire format unchanged — JSON `{from, to, content}`):
+
+| Event | Server sends | Client does |
+|---|---|---|
+| connect | `{"from":"SYSTEM","to":<sessionId>,"content":"HANDSHAKE"}`, then a frame whose content is your user id | start chatting; `to:"ALL"` broadcasts (echo includes sender) |
+| heartbeat | `content:"ping"` every 10 s | reply `{"to":"SYSTEM","content":"pong"}` (`from` ignored) |
+| token expired mid-session (sweeper) | `content:"REAUTH_REQUIRED"` then **close 4401** | refresh token, mint a **fresh** ticket, reconnect |
+| logout (Keycloak event via Kafka) | `content:"LOGGED_OUT"` then **close 4403** | stop reconnecting, show logged-out UI |
+
+Identity is bound at handshake from validated credentials: the server **stamps
+`from`** with the session's bound `sub` on every relayed message; client-claimed
+`from` is never trusted. Every reconnect attempt mints a fresh ticket.
+
+Logout propagation uses the existing Keycloak→Kafka events
+(`KafkaKeycloakController`) + the `userId → sessions` reverse index; the sweeper
+enforces the token `exp` ceiling as the always-on backstop (Keycloak logout does
+not revoke outstanding access tokens — keep them short). The registry, index,
+and ticket store are per-process/per-instance.
+
+Config (`application.properties`): `com.softeno.ws.ticket-ttl-seconds=10`,
+`com.softeno.ws.allowed-origins=http://localhost:3000,http://localhost:8080`
+(comma-separated exact match; `:8080` is the dev page's own origin),
+`com.softeno.ws.sweep-interval-seconds=10`, plus the existing
+`heartbeat-interval-seconds` / `stale-check*` keys.
+
+**Chat page:** `chat/chat.html`, served at http://localhost:8080/chat/ (static,
+permitAll) — keycloak-js from CDN → login → mint ticket → chat, two tabs see each
+other. The page always calls the backend at `http://localhost:8080`, so it also
+works when served from a static server (`(cd chat && python3 -m http.server 3000)`
+→ http://localhost:3000/chat.html). Browser login requires the realm `app`
+`frontend` client to list the page's origin as redirect/web origin — the stock
+config allows `http://localhost:3000` (kcadm command for `:8080` in the file header).
+
+**Try it without a browser:** `http/ws.http` (IntelliJ HTTP Client) mints tickets
+and drives the socket with `WEBSOCKET` requests.
 
 ## Configuration reference
 
 `application.properties` reads from `config/env.properties` (via `spring.config.import`), which is generated from `env.template.properties` and holds environment-specific values: Mongo connection, Kafka bootstrap/topics/group, OAuth issuer/client URIs and credentials, external service URLs. Secrets stay out of git; the Docker image expects the same variables at runtime.
+
+## Architecture decision records
+
+Significant design decisions are recorded in [`docs/adr/`](docs/adr):
+
+| ADR | Decision | Status |
+|---|---|---|
+| [ADR-0001](docs/adr/0001-websocket-one-time-ticket-auth.md) | WebSocket chat auth via one-time tickets (+ session lifecycle: ceiling sweeper, logout revocation, 4401/4403 contract) | Accepted |
+
+ADRs are **immutable** once accepted: when a decision or flow changes, do not rewrite
+history — add a new numbered ADR explaining the new context and decision, and mark the
+old one `Superseded by ADR-NNNN` (its status line is the only thing that may change).
 
 ## License
 

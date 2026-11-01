@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<!--
+  chat/chat.html — browser chat dev tool for this template (NOT a product).
+
+  Served by the backend at http://localhost:8080/chat/chat.html (see
+  WsChatToolConfig; /chat/** is permitAll). The page always talks to the backend
+  at http://localhost:8080 regardless of where it is loaded from, so it also
+  works from a plain static server, e.g.:
+    (cd chat && python3 -m http.server 3000)   # then http://localhost:3000/chat.html
+
+  Flow (one-time-ticket WebSocket auth):
+    keycloak-js (CDN) check-sso -> login -> getAccessToken
+    -> POST http://localhost:8080/ws-ticket (Authorization: Bearer)
+    -> new WebSocket("ws://localhost:8080/ws?ticket=...")
+    The ticket is opaque, single-use and 10 s TTL; it is the ONLY credential
+    allowed in the socket URL (never ?access_token= — RFC 9700 §4.3.2).
+
+  Client contract:
+    - server sends {"from":"SYSTEM","to":<sessionId>,"content":"HANDSHAKE"}, then
+      a frame whose content is your user id, then "ping" every 10 s.
+      Answer pongs with {"to":"SYSTEM","content":"pong"} ("from" is ignored —
+      the server stamps `from` from the session's bound identity).
+    - close 4401 (REAUTH_REQUIRED): token ceiling passed -> refresh token,
+      mint a FRESH ticket, reconnect (this page does it automatically).
+    - close 4403 (LOGGED_OUT): revoked -> stop, show logged-out (no reconnect).
+    - Reconnect button always mints a FRESH ticket (a used ticket gets 401).
+
+  Dev-infra requirement: the Keycloak `frontend` client of realm `app` must list
+  the page's origin in its Valid redirect URIs + Web origins. The stock realm
+  config allows http://localhost:3000 — so serving this directory from :3000
+  works out of the box. To also use it from the backend origin (:8080):
+
+    kcadm.sh config credentials --server http://localhost:8090/realms/master \
+      --realm master --user admin --password <admin-password>
+    kcadm.sh update clients/<frontend-client-uuid> -r app \
+      -s 'redirectUris=["http://localhost:3000/*","http://localhost:8080/*"]' \
+      -s 'webOrigins=["http://localhost:3000","http://localhost:8080"]'
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ws-ticket chat — dev tool</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+  header { padding: .6rem 1rem; border-bottom: 1px solid #8884; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+  #status { font-size: .85rem; opacity: .8; }
+  #messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: .4rem; }
+  .msg { max-width: 70%; padding: .45rem .7rem; border-radius: .7rem; background: #8882; word-break: break-word; }
+  .msg .from { font-size: .7rem; opacity: .65; display: block; }
+  .msg.own { align-self: flex-end; background: #4a86e855; }
+  .msg.system { align-self: center; background: transparent; opacity: .6; font-size: .75rem; }
+  footer { display: flex; gap: .5rem; padding: .7rem 1rem; border-top: 1px solid #8884; }
+  #input { flex: 1; padding: .5rem; }
+  button { padding: .5rem .9rem; }
+</style>
+</head>
+<body>
+<header>
+  <strong>ws-ticket chat (dev)</strong>
+  <button id="loginBtn" hidden>Login</button>
+  <button id="connectBtn" hidden>Connect</button>
+  <button id="reconnectBtn" hidden>Reconnect</button>
+  <span id="status">initializing…</span>
+</header>
+<main id="messages"></main>
+<footer>
+  <input id="input" placeholder="message… (to ALL)" autocomplete="off">
+  <button id="sendBtn" disabled>Send</button>
+</footer>
+
+<script type="module">
+import Keycloak from "https://cdn.jsdelivr.net/npm/keycloak-js@26/+esm"; // 26.x ships no dist/*.mjs; jsdelivr ESM build
+
+const AUTH = { url: "http://localhost:8090", realm: "app", clientId: "frontend" };
+const API = "http://localhost:8080";   // backend, regardless of where this page is served from
+const WS_URL = "ws://localhost:8080/ws";
+
+const kc = new Keycloak(AUTH);
+const $ = (id) => document.getElementById(id);
+// Echo dedupe: optimistic-rendered own messages are skipped when their ALL-echo
+// returns — counted per (sender, content), NOT a persistent set, so sending the
+// same text twice still shows twice.
+const pendingEchoes = new Map();
+let ws = null, sessionId = null, reconnectTimer = null;
+
+function status(text) { $("status").textContent = text; }
+
+function render(msg, own = false) {
+  const div = document.createElement("div");
+  const system = msg.from === "SYSTEM";
+  div.className = "msg" + (own ? " own" : system ? " system" : "");
+  if (!system) {
+    const from = document.createElement("span");
+    from.className = "from";
+    from.textContent = msg.from;
+    div.appendChild(from);
+  }
+  div.appendChild(document.createTextNode(msg.content));
+  $("messages").appendChild(div);
+  $("messages").scrollTop = $("messages").scrollHeight;
+}
+
+function skipOwnEcho(msg) {
+  if (msg.from !== mySub()) return false;         // someone else's message: always render
+  const key = msg.from + "\u0000" + msg.content;
+  const n = pendingEchoes.get(key) || 0;
+  if (n <= 0) return false;                       // never sent this (or already matched)
+  if (n === 1) pendingEchoes.delete(key); else pendingEchoes.set(key, n - 1);
+  return true;                                    // this is the echo of our optimistic render
+}
+
+function disconnectInfo(text) { status(text); $("sendBtn").disabled = true; }
+
+async function mintTicket() {
+  const token = await kc.token;   // refreshed below if needed
+  const res = await fetch(API + "/ws-ticket", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token },
+  });
+  if (!res.ok) throw new Error("ticket mint failed: HTTP " + res.status);
+  return (await res.json()).ticket;   // single-use, 10 s TTL
+}
+
+async function connect(fresh = true) {
+  if (ws && ws.readyState <= WebSocket.OPEN) return;
+  status("connecting…");
+  let ticket;
+  try {
+    ticket = await mintTicket();   // always a FRESH single-use ticket
+  } catch (e) {
+    disconnectInfo("ticket mint failed: " + e.message);
+    if (kc.authenticated) scheduleReconnect();   // backend hiccup: retry; logged out: stop
+    return;
+  }
+
+  ws = new WebSocket(WS_URL + "?ticket=" + encodeURIComponent(ticket));
+  ws.onopen = () => { status("connected"); $("sendBtn").disabled = false; };
+  ws.onmessage = (ev) => {
+    let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+    if (msg.from === "SYSTEM" && msg.content === "ping") {   // auto-answer ping
+      ws.send(JSON.stringify({ to: "SYSTEM", content: "pong" }));
+      return;
+    }
+    if (msg.content === "HANDSHAKE") return;                 // transport noise
+    if (msg.content === "REAUTH_REQUIRED") { render({ from: "SYSTEM", content: "token expired — reauthenticating" }); return; }
+    if (msg.content === "LOGGED_OUT") { render({ from: "SYSTEM", content: "logged out elsewhere" }); return; }
+    if (msg.from === "SYSTEM" && !sessionId) {                // first SYSTEM frame after HANDSHAKE carries our id
+      sessionId = msg.to;
+      render({ from: "SYSTEM", content: "you: " + msg.content });
+      return;
+    }
+    if (skipOwnEcho(msg)) return;
+    render(msg, msg.from === mySub());
+  };
+  ws.onclose = (ev) => {
+    disconnectInfo("disconnected (code " + ev.code + ")");
+    ws = null; sessionId = null;
+    if (ev.code === 4403) { render({ from: "SYSTEM", content: "LOGGED_OUT — log in again" }); showLoggedOut(); return; }
+    if (ev.code === 4401) {        // refresh + re-ticket + reconnect
+      (async () => {
+        try { const ok = await kc.updateToken(30); if (!ok) throw new Error("no session"); }
+        catch { showLoggedOut(); return; }
+        scheduleReconnect();
+      })();
+      return;
+    }
+    scheduleReconnect();           // plain drop: reconnect with a FRESH ticket
+  };
+  ws.onerror = () => disconnectInfo("socket error");
+}
+
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => connect(true), 1500); // fresh ticket per attempt
+}
+
+function showLoggedOut() {
+  $("connectBtn").hidden = true;
+  $("reconnectBtn").hidden = true;
+  $("loginBtn").hidden = false;
+  $("sendBtn").disabled = true;
+}
+
+function showLoggedIn() {
+  $("loginBtn").hidden = true;
+  $("connectBtn").hidden = false;
+  $("reconnectBtn").hidden = false;
+}
+
+function mySub() {
+  return (kc.tokenParsed && kc.tokenParsed.sub) || kc.subject || "";
+}
+
+$("loginBtn").onclick = () => kc.login({ redirectUri: location.href });
+$("connectBtn").onclick = () => connect(true);
+$("reconnectBtn").onclick = () => { clearTimeout(reconnectTimer); connect(true); };
+$("sendBtn").onclick = () => {
+  const text = $("input").value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ to: "ALL", content: text })); // from is ignored/stamped
+  const key = mySub() + "\u0000" + text;                 // expect one echo to skip
+  pendingEchoes.set(key, (pendingEchoes.get(key) || 0) + 1);
+  render({ from: mySub(), content: text }, true);
+  $("input").value = "";
+};
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sendBtn").click(); });
+
+// keep the access token fresh for re-mints; on silent failure -> logged out
+kc.onTokenExpired = () => { kc.updateToken(-1).catch(showLoggedOut); };
+
+const authenticated = await kc.init({ onLoad: "check-login" }).catch(() => false);
+if (authenticated) {
+  showLoggedIn();
+  status("authenticated — click Connect");
+} else {
+  showLoggedOut();
+  status("not logged in");
+}
+</script>
+</body>
+</html>

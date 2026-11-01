@@ -1,5 +1,7 @@
 package com.softeno.template.sample.websocket
 
+import com.softeno.template.sample.websocket.security.SessionBinding
+import com.softeno.template.sample.websocket.security.toSessionBinding
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -10,30 +12,30 @@ import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.slf4j.MDCContext
+import jakarta.annotation.PreDestroy
 import org.apache.commons.logging.LogFactory
+import org.slf4j.MDC
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.HandlerMapping
 import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping
+import org.springframework.web.reactive.socket.CloseStatus
 import org.springframework.web.reactive.socket.WebSocketHandler
 import org.springframework.web.reactive.socket.WebSocketSession
 import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter
 import reactor.core.publisher.Mono
 import tools.jackson.databind.ObjectMapper
 import java.time.Instant
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-@ConditionalOnProperty(
-    name = ["com.softeno.ws.type"],
-    havingValue = "coroutine",
-    matchIfMissing = false
-)
+@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true")
 @Configuration
 class CoroutineWebSocketConfig(
     private val coroutineMessageService: CoroutineMessageService,
@@ -48,8 +50,12 @@ class CoroutineWebSocketConfig(
     fun handlerMapping(objectMapper: ObjectMapper): HandlerMapping {
         val simpleMapping = SimpleUrlHandlerMapping()
         simpleMapping.order = 10
+        val handler = webSocketHandler(objectMapper)
+        // "/ws/" too: the redeem filter normalizes the trailing slash, and without
+        // this mapping a /ws/ upgrade would consume its ticket and 404.
         simpleMapping.urlMap = mapOf(
-            "/ws" to webSocketHandler(objectMapper)
+            "/ws" to handler,
+            "/ws/" to handler,
         )
         return simpleMapping
     }
@@ -57,11 +63,16 @@ class CoroutineWebSocketConfig(
     @Bean
     fun webSocketHandler(objectMapper: ObjectMapper): WebSocketHandler {
         return WebSocketHandler { session ->
-            log.info("ws: [chat] new session: ${session.id}")
-            // Convert reactive to coroutine context
-            mono( Dispatchers.IO + MDCContext()) {
+            // Capture the MDC (OTel traceId/spanId via context-propagation) while
+            // still on the request thread inside the reactive chain — this is the
+            // point where the handshake's tracing scope is active. The coroutine
+            // bridge below would otherwise capture an empty MDC.
+            val handshakeMdc = MDC.getCopyOfContextMap()
+            // Convert reactive to coroutine; MDCContext() carries the caller's
+            // MDC across the dispatcher hop into the session coroutines.
+            mono(Dispatchers.IO + MDCContext()) {
                 try {
-                    handleWebSocketSession(session, objectMapper)
+                    handleWebSocketSession(session, objectMapper, handshakeMdc)
                 } catch (e: Exception) {
                     log.error("ws: [chat] error in session: ${session.id}", e)
                 }
@@ -71,137 +82,132 @@ class CoroutineWebSocketConfig(
 
     private suspend fun handleWebSocketSession(
         session: WebSocketSession,
-        objectMapper: ObjectMapper
-    ) = withContext(Dispatchers.IO + MDCContext()) {
-        // Get user authentication
+        objectMapper: ObjectMapper,
+        handshakeMdc: Map<String, String>?,
+    ) {
+        // Identity was bound at the ticket redemption (or resource-server
+        // authentication) and lives in the reactive security context now.
+        // Client frames never assert identity.
+        val binding = ReactiveSecurityContextHolder.getContext().awaitSingleOrNull()
+            ?.authentication.toSessionBinding()
 
-        val userId = withContext(Dispatchers.IO + MDCContext()) {
-            val authentication = ReactiveSecurityContextHolder.getContext().awaitSingle().authentication
-            val token = (authentication as JwtAuthenticationToken).token
-            val userId = token.claims["sub"] as String
-            return@withContext userId
+        if (binding == null) {
+            // should not happen in the normal flow: anonymous /ws upgrades are
+            // rejected by the security chain, ticket failures pre-upgrade by the
+            // redeem filter. Defensive: never serve an unauthenticated session.
+            log.warn("ws: [chat] no authenticated principal for session: ${session.id}, closing")
+            session.close(WsControl.REAUTH_CLOSE_STATUS).awaitSingleOrNull()
+            return
         }
 
-        // Register session
-        coroutineMessageService.registerSession(session)
+        // Bind session identity into the MDC ONCE for the whole session lifetime,
+        // MERGING on top of the handshake's tracing MDC (traceId/spanId).
+        // MDCContext(map) REPLACES the MDC, so starting from the current copy is
+        // what keeps OTel correlation additive — nothing is dropped.
+        val sessionMdc = (handshakeMdc ?: emptyMap()) + (MDC.getCopyOfContextMap() ?: emptyMap()) + mapOf(
+            "sessionId" to session.id,
+            "userId" to binding.sub,
+        )
+        withContext(MDCContext(sessionMdc)) {
+            log.info("ws: [chat] new session: ${session.id}")
 
-        // Send initial messages
-        coroutineMessageService.send(Message("SYSTEM", session.id, "HANDSHAKE"), session)
-        coroutineMessageService.send(Message("SYSTEM", session.id, userId), session)
+            // Register session (binds {sub, sid, exp} + reverse index)
+            coroutineMessageService.registerSession(session, binding)
 
-        // Start concurrent coroutines for sending and receiving
-        coroutineScope {
-            // Coroutine for sending messages (including heartbeat)
-            val sendingJob = launch(Dispatchers.IO + MDCContext() +
-                    SupervisorJob() + CoroutineExceptionHandler { context, throwable -> runBlocking(Dispatchers.IO + MDCContext()) {
-                        log.error("ws: [chat] failed to send message in session: $session.id", throwable)
-                        handleWebSocketSessionError(context, throwable, session)
+            // Send initial messages
+            coroutineMessageService.send(Message("SYSTEM", session.id, "HANDSHAKE"), session)
+            coroutineMessageService.send(Message("SYSTEM", session.id, binding.sub), session)
+
+            try {
+                // Structured concurrency: one scope owns the session's jobs; a
+                // failure in any job cancels the others and runs cleanup exactly once.
+                coroutineScope {
+                    val handler = sessionExceptionHandler(this, session)
+
+                    val sendingJob = launch(SupervisorJob() + handler) {
+                        handleOutgoingMessages(session, objectMapper)
                     }
-            }) {
-                handleOutgoingMessages(session, objectMapper)
-            }
-
-            // Coroutine for receiving messages
-            val receivingJob = launch(Dispatchers.IO + MDCContext() +
-                    SupervisorJob() + CoroutineExceptionHandler { context, throwable -> runBlocking(Dispatchers.IO + MDCContext()) {
-                        log.error("ws: [chat] failed to receive message in session: ${session.id}", throwable)
-                        handleWebSocketSessionError(context, throwable, session)
+                    val receivingJob = launch(SupervisorJob() + handler) {
+                        handleIncomingMessages(this, session, objectMapper)
                     }
-            }) {
-                handleIncomingMessages(session, objectMapper)
-            }
-
-            // Coroutine for heartbeat
-            val heartbeatJob = launch(Dispatchers.IO + MDCContext() +
-                    SupervisorJob() + CoroutineExceptionHandler { context, throwable -> runBlocking(Dispatchers.IO + MDCContext()) {
-                        log.error("ws: [chat] failed to send heartbeat in session: ${session.id}", throwable)
-                        handleWebSocketSessionError(context, throwable, session)
+                    val heartbeatJob = launch(SupervisorJob() + handler) {
+                        handleHeartbeat(session)
                     }
-            }) {
-                handleHeartbeat(session)
-            }
 
-            // Wait for any job to complete (usually means disconnection)
-            select {
-                sendingJob.onJoin { }
-                receivingJob.onJoin { }
-                heartbeatJob.onJoin { }
-            }
+                    // Wait for any job to complete (usually means disconnection)
+                    select {
+                        sendingJob.onJoin { }
+                        receivingJob.onJoin { }
+                        heartbeatJob.onJoin { }
+                    }
 
-            // Cancel remaining jobs
-            sendingJob.cancelAndJoin()
-            receivingJob.cancelAndJoin()
-            heartbeatJob.cancelAndJoin()
+                    // Cancel remaining jobs
+                    sendingJob.cancelAndJoin()
+                    receivingJob.cancelAndJoin()
+                    heartbeatJob.cancelAndJoin()
+                }
+            } finally {
+                // Cleanup is idempotent: may also run from the sweeper/revocation path.
+                log.info("ws: [chat] disconnect chat session: ${session.id}")
+                coroutineMessageService.unregisterSession(session)
+            }
         }
-
-        // Cleanup
-        log.info("ws: [chat] disconnect chat session: ${session.id}")
-        coroutineMessageService.unregisterSession(session)
     }
 
-    private suspend fun handleWebSocketSessionError(context: CoroutineContext, throwable: Throwable, session: WebSocketSession) =
-        withContext(Dispatchers.IO + MDCContext()) {
-            log.error("ws: [chat] error: ${throwable.message}", throwable)
-            log.info("ws: [chat] closing session: ${session.id}")
-
-            closeSession(session)
-            context.cancel()
-    }
-
-    private suspend fun closeSession(session: WebSocketSession) = withContext(Dispatchers.IO + MDCContext()) {
-        coroutineMessageService.unregisterSession(session)
-        session.close().awaitSingleOrNull()
-    }
+    /**
+     * A failing job closes the session cleanly instead of killing siblings
+     * silently: log, close the socket, cancel the session scope (the finally in
+     * handleWebSocketSession then runs the idempotent unregister exactly once).
+     */
+    private fun sessionExceptionHandler(scope: CoroutineScope, session: WebSocketSession): CoroutineExceptionHandler =
+        CoroutineExceptionHandler { _, throwable ->
+            log.error("ws: [chat] session job failed for session: ${session.id}", throwable)
+            session.close().subscribe()
+            scope.cancel()
+        }
 
     private suspend fun handleOutgoingMessages(
         session: WebSocketSession,
         objectMapper: ObjectMapper
-    ) = withContext(Dispatchers.IO + MDCContext()) {
+    ) {
         coroutineMessageService.getMessageFlow(session).collect { message ->
             val json = message.toJson(objectMapper)
-            log.info("ws: [chat] tx: $json")
+            log.debug("ws: [chat] tx: $json")
             session.send(Mono.just(session.textMessage(json))).awaitSingleOrNull()
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     private suspend fun handleIncomingMessages(
+        scope: CoroutineScope,
         session: WebSocketSession,
         objectMapper: ObjectMapper
-    ) = withContext(Dispatchers.IO + MDCContext()) {
+    ) {
+        // Parse + handle run on the SESSION scope (structured concurrency): they
+        // inherit the session MDC + dispatcher and die with the socket. Never
+        // GlobalScope: detached coroutines leak past disconnect and lose MDC.
         session.receive()
             .doOnNext { wsMessage ->
-                // Process the message immediately within the reactive context
-                try {
-                    val payloadText = wsMessage.payloadAsText
-                    val message = objectMapper.readValue(payloadText, Message::class.java)
-                    log.info("ws: [chat] rx: $message")
+                val payloadText = wsMessage.payloadAsText
+                scope.launch {
+                    try {
+                        val message = objectMapper.readValue(payloadText, Message::class.java)
+                        log.debug("ws: [chat] rx: $message")
+                        when {
+                            message.content == "pong" && message.to == "SYSTEM" ->
+                                coroutineMessageService.updateLastPong(session)
 
-                    // Launch a coroutine to handle the message asynchronously
-                    GlobalScope.launch(Dispatchers.IO + MDCContext()) {
-                        try {
-                            when {
-                                message.content == "pong" && message.to == "SYSTEM" -> {
-                                    log.debug("ws: [chat] received pong from session: ${session.id}")
-                                    coroutineMessageService.updateLastPong(session)
-                                }
-                                else -> {
-                                    coroutineMessageService.routeMessage(message)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            log.error("ws: [chat] failed to route message in session: ${session.id}", e)
+                            else -> coroutineMessageService.routeMessage(session, message)
                         }
+                    } catch (e: Exception) {
+                        log.error("ws: [chat] failed to parse/route message in session: ${session.id}", e)
                     }
-                } catch (e: Exception) {
-                    log.error("ws: [chat] failed to parse message in session: ${session.id}", e)
                 }
             }
             .then()
             .awaitSingleOrNull()
     }
 
-    private suspend fun handleHeartbeat(session: WebSocketSession) = withContext(Dispatchers.IO + MDCContext()) {
+    private suspend fun handleHeartbeat(session: WebSocketSession) {
         while (currentCoroutineContext().isActive) {
             delay(config.heartbeatIntervalSeconds.toLong().seconds)
             log.debug("ws: [chat] sending heartbeat to session: ${session.id}")
@@ -210,46 +216,72 @@ class CoroutineWebSocketConfig(
     }
 }
 
-@ConditionalOnProperty(
-    name = ["com.softeno.ws.type"],
-    havingValue = "coroutine",
-    matchIfMissing = false
-)
+@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true")
 @Service
 class CoroutineMessageService(
-    private val config: ChatConfigProperties
+    private val config: ChatConfigProperties,
+    private val objectMapper: ObjectMapper,
 ) : WebSocketNotificationSender {
     private val log = LogFactory.getLog(javaClass)
 
     private val messageChannels = ConcurrentHashMap<WebSocketSession, Channel<Message>>()
     private val lastPongTimes = ConcurrentHashMap<WebSocketSession, Instant>()
 
-    // Lazy heartbeat monitoring
-    @OptIn(DelicateCoroutinesApi::class)
-    private val heartbeatMonitoring: Job by lazy {
-        GlobalScope.launch {
+    // Session identity: bound at handshake from validated credentials.
+    // The reverse index (sub -> sessions) is what makes logout/revocation events
+    // find a user's sockets; without it they are inert.
+    private val bindings = ConcurrentHashMap<WebSocketSession, SessionBinding>()
+    private val userIndex = ConcurrentHashMap<String, MutableSet<WebSocketSession>>()
+
+    // Service-scoped coroutines (sweeper + control-then-close); cancelled with the
+    // bean. MDCContext(emptyMap()) so background passes never inherit a stale
+    // request/session MDC snapshot — session ids are logged explicitly instead.
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + MDCContext(emptyMap()))
+
+    // Lazy lifecycle sweeping: enforces the token ceiling (4401) and heartbeat
+    // staleness on every pass.
+    private val sweeper: Job by lazy {
+        serviceScope.launch {
             while (isActive) {
-                delay(config.heartbeatIntervalSeconds.toLong().seconds)
-                checkStaleConnections()
+                delay(config.sweepIntervalSeconds.toLong().seconds)
+                try {
+                    sweep()
+                } catch (e: Exception) {
+                    log.error("ws: [chat] sweep failed", e)
+                }
             }
         }
     }
 
-    suspend fun registerSession(session: WebSocketSession) = withContext(Dispatchers.IO + MDCContext()) {
+    fun registerSession(session: WebSocketSession, binding: SessionBinding) {
         messageChannels[session] = Channel(capacity = Channel.UNLIMITED)
         lastPongTimes[session] = Instant.now()
-
-        // Start heartbeat monitoring when first session connects
-        if (config.staleCheck) {
-            heartbeatMonitoring
+        bindings[session] = binding
+        // atomic: read-modify-write of the reverse-index entry under compute, so a
+        // concurrent unregister(same sub) can never detach our add and hide this
+        // session from logout revocation
+        userIndex.compute(binding.sub) { _, sessions ->
+            (sessions ?: Collections.newSetFromMap(ConcurrentHashMap())).apply { add(session) }
         }
 
-        log.info("ws: [chat] registered session: ${session.id}")
+        // Start lifecycle sweeping when first session connects
+        if (config.staleCheck) {
+            sweeper
+        }
+
+        log.info("ws: [chat] registered session: ${session.id} for user: ${binding.sub}")
     }
 
     fun unregisterSession(session: WebSocketSession) {
         messageChannels.remove(session)?.close()
         lastPongTimes.remove(session)
+        bindings.remove(session)?.let { binding ->
+            // leak-free unregister: remove from both the registry and the reverse index
+            userIndex.compute(binding.sub) { _, sessions ->
+                sessions?.remove(session)
+                if (sessions.isNullOrEmpty()) null else sessions
+            }
+        }
         log.info("ws: [chat] unregistered session: ${session.id}")
     }
 
@@ -269,7 +301,20 @@ class CoroutineMessageService(
         return message
     }
 
-    fun routeMessage(message: Message) {
+    /**
+     * Route an incoming frame. The `from` field is STAMPED from the sending
+     * session's bound identity — client-claimed identity is not trusted.
+     */
+    fun routeMessage(session: WebSocketSession, message: Message) {
+        val binding = bindings[session]
+        if (binding == null) {
+            log.warn("ws: [chat] message from unregistered session: ${session.id}, dropped")
+            return
+        }
+        route(message.copy(from = binding.sub))
+    }
+
+    fun route(message: Message) {
         when (message.to) {
             "ALL" -> broadcast(message)
             else -> {
@@ -279,6 +324,7 @@ class CoroutineMessageService(
             }
         }
     }
+
     fun getSession(sessionId: String): WebSocketSession? {
         return messageChannels.keys.firstOrNull { it.id == sessionId }
     }
@@ -288,24 +334,88 @@ class CoroutineMessageService(
     }
 
     fun updateLastPong(session: WebSocketSession) {
-        lastPongTimes[session] = Instant.now()
+        // computeIfPresent, not put: a pong racing in AFTER unregister must not
+        // resurrect the entry — a ghost entry is never cleaned by the stale sweep
+        // (binding is gone) and would leak one map entry per raced pong.
+        lastPongTimes.computeIfPresent(session) { _, _ -> Instant.now() }
     }
 
-    private fun checkStaleConnections() {
-        val staleThreshold = Instant.now().minusSeconds(config.staleCheckThresholdSeconds.toLong())
-        val staleSessions = mutableListOf<WebSocketSession>()
-
-        // First, identify stale sessions without modifying the collection
-        lastPongTimes.forEach { (session, lastPong) ->
-            if (lastPong.isBefore(staleThreshold)) {
-                staleSessions.add(session)
-            }
+    /**
+     * Revocation by user (Keycloak LOGOUT events via KafkaKeycloakController).
+     * Note: the registry and index are PER-INSTANCE. In a multi-instance
+     * deployment the keycloak-events consumer must run with a per-instance
+     * consumer group so every instance receives every event; a shared group
+     * load-balances each event to one — possibly wrong — instance. # VERIFY per deployment.
+     */
+    override fun revokeUser(userId: String): Int {
+        val sessions = userIndex[userId]?.toList() ?: return 0
+        log.info("[ws] revoking ${sessions.size} session(s) for user: $userId")
+        sessions.forEach { session ->
+            closeWithControl(session, WsControl.LOGGED_OUT, WsControl.LOGOUT_CLOSE_STATUS)
         }
+        return sessions.size
+    }
 
-        // Then, clean up stale sessions properly in coroutine context
-        staleSessions.forEach { session ->
-            log.warn("ws: [chat] removing stale connection: ${session.id} (last pong: ${lastPongTimes[session]})")
+    /** Sessions currently bound to [userId] (reverse index view, for tests/ops). */
+    fun sessionsFor(userId: String): Set<WebSocketSession> =
+        userIndex[userId]?.toSet() ?: emptySet()
+
+    fun bindingOf(session: WebSocketSession): SessionBinding? = bindings[session]
+
+    /** Send the control frame through the session's channel, then close with [status]. */
+    private fun closeWithControl(session: WebSocketSession, control: String, status: CloseStatus) {
+        val channel = messageChannels[session] ?: return
+        channel.trySend(Message("SYSTEM", session.id, control))
+        serviceScope.launch {
+            // small grace so the outgoing coroutine flushes the control frame
+            delay(WsControl.CONTROL_CLOSE_GRACE_MS.milliseconds)
+            // close FIRST (with the contract status), unregister after: unregistering
+            // closes the channel, which would let the handler's normal cleanup race
+            // a plain 1000 close onto the wire before this status code.
+            try {
+                session.close(status).awaitSingleOrNull()
+            } catch (e: Exception) {
+                log.debug("ws: [chat] error closing session: ${session.id}", e)
+            }
             unregisterSession(session)
         }
     }
+
+    internal fun sweep() {
+        val now = Instant.now()
+
+        // Hard token ceiling: past `exp` -> REAUTH_REQUIRED + 4401.
+        // The client contract is: refresh, mint a fresh ticket, reconnect.
+        bindings.entries
+            .filter { (_, binding) -> binding.exp.isBefore(now) }
+            .forEach { (session, binding) ->
+                log.info("ws: [chat] token expired for session: ${session.id} (user: ${binding.sub}), sending REAUTH_REQUIRED")
+                closeWithControl(session, WsControl.REAUTH_REQUIRED, WsControl.REAUTH_CLOSE_STATUS)
+            }
+
+        // Heartbeat liveness (orthogonal to auth expiry): stale -> drop as before.
+        val staleThreshold = now.minusSeconds(config.staleCheckThresholdSeconds.toLong())
+        lastPongTimes.forEach { (session, lastPong) ->
+            if (bindings.containsKey(session) && lastPong.isBefore(staleThreshold)) {
+                log.warn("ws: [chat] removing stale connection: ${session.id} (last pong: $lastPong)")
+                unregisterSession(session)
+            }
+        }
+    }
+
+    /** Cancel service coroutines and close live sessions cleanly on shutdown. */
+    @PreDestroy
+    fun shutdown() {
+        // skill requirement: on graceful shutdown, clients get a clean close
+        // (1001 GOING_AWAY) instead of a connection reset — important behind
+        // rolling deploys where browsers would otherwise storm-reconnect.
+        val sessions = messageChannels.keys.toList()
+        if (sessions.isNotEmpty()) log.info("[ws] shutdown: closing ${sessions.size} live session(s)")
+        sessions.forEach { session ->
+            runCatching { session.close(CloseStatus(1001, "SERVER_SHUTDOWN")).subscribe() }
+        }
+        serviceScope.coroutineContext.cancel()
+    }
+
+    internal fun lastPongEntryCount(): Int = lastPongTimes.size
 }
