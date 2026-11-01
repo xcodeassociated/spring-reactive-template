@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<!--
+  web/sse.html — browser SSE dev tool for this template (NOT a product).
+
+  Served by the backend at http://localhost:8080/web/sse.html (see
+  WebToolConfig; /web/** is permitAll). The page always talks to the backend
+  at http://localhost:8080 regardless of where it is loaded from, so it also
+  works from a plain static server, e.g.:
+    (cd web && python3 -m http.server 3000)   # then http://localhost:3000/sse.html
+
+  Flow (one-time-ticket SSE handshake auth, ADR-0002):
+    keycloak-js (CDN) check-sso -> login -> getAccessToken
+    -> POST http://localhost:8080/sse-ticket (Authorization: Bearer) -> {ticket, expiresIn}
+    -> new EventSource("http://localhost:8080/update/user?ticket=...")
+    The ticket is opaque, single-use and 10 s TTL; it is the ONLY credential
+    allowed in the stream URL (never ?access_token= — RFC 9700 §4.3.2).
+
+  Client contract (this page implements it — copy this pattern):
+    - `heartbeat` events (~10 s) prove the stream is live; the first one
+      arrives immediately on subscribe.
+    - `update` events carry domain broadcasts (e.g. USER_CREATED: <id> —
+      the Create-user button triggers one).
+    - `token_expired`: the mint-time token ceiling passed -> refresh the token,
+      MINT A FRESH TICKET, reconnect (done automatically here).
+    - `logged_out`: revoked (Keycloak LOGOUT via Kafka) -> stop, show logged-out,
+      NEVER reconnect.
+    - EventSource auto-reconnect replays the SAME url, and the ticket in it is
+      already redeemed -> 401 loop. So on `error` the page CLOSES the stream and
+      reconnects itself with a FRESHLY minted ticket.
+
+  Dev-infra requirement: the Keycloak `frontend` client of realm `app` must list
+  the page's origin in its Valid redirect URIs + Web origins. The stock realm
+  config allows http://localhost:3000 — so serving this directory from :3000
+  works out of the box (see README for opening :8080 as well).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sse-ticket stream — dev tool</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+  header { padding: .6rem 1rem; border-bottom: 1px solid #8884; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+  #status { font-size: .85rem; opacity: .8; }
+  #events { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: .35rem; font-size: .85rem; }
+  .ev { padding: .4rem .7rem; border-radius: .6rem; background: #8882; word-break: break-word; }
+  .ev .name { font-weight: 600; margin-right: .5rem; }
+  .ev .ts { float: right; font-size: .7rem; opacity: .5; }
+  .ev.control { background: #e8a04a33; }
+  .ev.heartbeat { opacity: .55; }
+  footer { display: flex; gap: .5rem; padding: .7rem 1rem; border-top: 1px solid #8884; align-items: center; }
+  #tokenLeft { font-size: .8rem; opacity: .7; }
+  button { padding: .5rem .9rem; }
+</style>
+</head>
+<body>
+<header>
+  <strong>sse-ticket stream (dev)</strong>
+  <button id="loginBtn" hidden>Login</button>
+  <button id="subscribeBtn" hidden>Subscribe</button>
+  <button id="unsubscribeBtn" hidden>Unsubscribe</button>
+  <button id="createUserBtn" hidden>Create user (trigger)</button>
+  <button id="logoutBtn" hidden>Keycloak logout</button>
+  <span id="status">initializing…</span>
+</header>
+<main id="events"></main>
+<footer>
+  <span id="tokenLeft"></span>
+</footer>
+
+<script type="module">
+import Keycloak from "https://cdn.jsdelivr.net/npm/keycloak-js@26/+esm"; // 26.x ships no dist/*.mjs; jsdelivr ESM build
+
+const AUTH = { url: "http://localhost:8090", realm: "app", clientId: "frontend" };
+const API = "http://localhost:8080";   // backend, regardless of where this page is served from
+
+const kc = new Keycloak(AUTH);
+const $ = (id) => document.getElementById(id);
+let es = null, resubscribeTimer = null, stopped = false;
+
+function status(text) { $("status").textContent = text; }
+
+function logEvent(name, data, cls = "") {
+  const div = document.createElement("div");
+  div.className = "ev" + (cls ? " " + cls : "");
+  const ts = document.createElement("span");
+  ts.className = "ts";
+  ts.textContent = new Date().toLocaleTimeString();
+  const n = document.createElement("span");
+  n.className = "name";
+  n.textContent = name;
+  div.append(ts, n, document.createTextNode(data ?? ""));
+  $("events").appendChild(div);
+  $("events").scrollTop = $("events").scrollHeight;
+}
+
+async function mintTicket() {
+  const res = await fetch(API + "/sse-ticket", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + kc.token },   // token refreshed by updateToken below
+  });
+  if (!res.ok) throw new Error("ticket mint failed: HTTP " + res.status);
+  return (await res.json()).ticket;   // single-use, 10 s TTL
+}
+
+async function subscribe(fresh = true) {
+  if (es || stopped) return;
+  status("subscribing…");
+  let ticket;
+  try {
+    ticket = await mintTicket();   // always a FRESH single-use ticket
+  } catch (e) {
+    status("ticket mint failed: " + e.message);
+    if (kc.authenticated) scheduleResubscribe();   // backend hiccup: retry; logged out: stop
+    return;
+  }
+
+  es = new EventSource(API + "/update/user?ticket=" + encodeURIComponent(ticket));
+
+  es.addEventListener("heartbeat", (e) => { status("stream live"); logEvent("heartbeat", e.data, "heartbeat"); });
+  es.addEventListener("update", (e) => logEvent("update", e.data));
+
+  // server-side token ceiling reached: refresh, re-mint, reconnect
+  es.addEventListener("token_expired", async (e) => {
+    logEvent("token_expired", e.data, "control");
+    closeStream();
+    try { if (!(await kc.updateToken(-1))) throw new Error("no session"); }
+    catch { showLoggedOut("session gone"); return; }
+    scheduleResubscribe(0);
+  });
+
+  // revoked (Keycloak LOGOUT via Kafka): stop — no reconnect
+  es.addEventListener("logged_out", (e) => {
+    logEvent("logged_out", e.data, "control");
+    closeStream();
+    showLoggedOut("logged out / revoked");
+  });
+
+  // transport error: EventSource would auto-reconnect with the SAME used ticket
+  // (-> 401 loop), so take over: close and reconnect with a FRESH ticket
+  es.onerror = () => {
+    if (stopped || !es) return;
+    closeStream();
+    status("stream dropped — re-minting…");
+    scheduleResubscribe(1500);
+  };
+}
+
+function closeStream() {
+  clearTimeout(resubscribeTimer);
+  if (es) { es.close(); es = null; }
+}
+
+function scheduleResubscribe(delayMs = 1500) {
+  clearTimeout(resubscribeTimer);
+  resubscribeTimer = setTimeout(() => subscribe(true), delayMs); // fresh ticket per attempt
+}
+
+async function createUser() {   // requires ROLE_ADMIN — the dev `user` has it
+  const name = "sse-tool-" + Math.random().toString(36).slice(2, 8);
+  const res = await fetch(API + "/coroutine/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + kc.token },
+    body: JSON.stringify({ name, email: name + "@test.local", role: [] }),
+  });
+  logEvent("POST /coroutine/users", res.status + " " + name, "control");
+}
+
+function showLoggedOut(text = "not logged in") {
+  stopped = true;
+  closeStream();
+  $("loginBtn").hidden = false;
+  $("subscribeBtn").hidden = true;
+  $("unsubscribeBtn").hidden = true;
+  $("createUserBtn").hidden = true;
+  $("logoutBtn").hidden = true;
+  status(text);
+}
+
+function showLoggedIn() {
+  stopped = false;
+  $("loginBtn").hidden = true;
+  $("subscribeBtn").hidden = false;
+  $("unsubscribeBtn").hidden = false;
+  $("createUserBtn").hidden = false;
+  $("logoutBtn").hidden = false;
+  status("authenticated — click Subscribe");
+}
+
+$("loginBtn").onclick = () => kc.login({ redirectUri: location.href });
+$("subscribeBtn").onclick = () => subscribe(true);
+$("unsubscribeBtn").onclick = () => { closeStream(); status("unsubscribed"); };
+$("createUserBtn").onclick = createUser;
+$("logoutBtn").onclick = () => kc.logout({ redirectUri: location.href });
+
+// keep the access token fresh for re-mints; on silent failure -> logged out
+kc.onTokenExpired = () => { kc.updateToken(-1).catch(() => showLoggedOut("session gone")); };
+
+// token countdown display (informational; the SERVER enforces the ceiling)
+setInterval(() => {
+  if (!kc.tokenParsed) { $("tokenLeft").textContent = ""; return; }
+  const left = kc.tokenParsed.exp - Math.floor(Date.now() / 1000);
+  $("tokenLeft").textContent = "access token expires in " + Math.max(0, left) + " s — the server closes the stream at this ceiling (token_expired)";
+}, 1000);
+
+const authenticated = await kc.init({ onLoad: "check-login" }).catch(() => false);
+if (authenticated) showLoggedIn();
+else showLoggedOut();
+</script>
+</body>
+</html>

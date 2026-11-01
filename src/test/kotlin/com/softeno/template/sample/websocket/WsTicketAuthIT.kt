@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.socket.WebSocketSession
 
@@ -34,16 +33,16 @@ import org.springframework.web.reactive.socket.WebSocketSession
     properties = [
         "spring.profiles.active=integration",
         "spring.grpc.server.port=0",
-        "com.softeno.ws.heartbeat-interval-seconds=2",
+        "com.softeno.ws.heartbeat-interval-seconds=1",
         "com.softeno.ws.sweep-interval-seconds=1",
         "com.softeno.ws.stale-check-threshold-seconds=30",
-        "com.softeno.ws.ticket-ttl-seconds=10",
         "com.softeno.ws.allowed-origins=$WS_ALLOWED_ORIGIN",
+        "com.softeno.ticket.ttl-seconds=10",
+        "com.softeno.sse.sweep-interval-seconds=1",
     ],
 )
 @AutoConfigureWebTestClient(timeout = "30000")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
 
     @LocalServerPort
@@ -130,8 +129,8 @@ class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
     @Test
     fun `token expiry closes the session with REAUTH_REQUIRED and 4401`() {
         val sub = R.sub("ceiling")
-        // mint with a 3 s token ceiling; the 1 s sweeper must enforce it
-        val socket = openSocket(mint(sub, expSeconds = 3))
+        // mint with a 2 s token ceiling; the 1 s sweeper must enforce it
+        val socket = openSocket(mint(sub, expSeconds = 2))
         socket.awaitContent("HANDSHAKE")
 
         socket.awaitContent(WsControl.REAUTH_REQUIRED, 20_000)
@@ -172,12 +171,17 @@ class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
     }
 
     @Test
-    fun `chat dev page is served at chat path`() {
-        webTestClient.get().uri("http://localhost:$port/chat/chat.html")
+    fun `web dev pages are served at web path`() {
+        webTestClient.get().uri("http://localhost:$port/web/chat.html")
             .exchange()
             .expectStatus().isOk()
             .expectBody(String::class.java)
             .consumeWith { assert(it.responseBody!!.contains("ws-ticket chat")) { "chat page content missing" } }
+        webTestClient.get().uri("http://localhost:$port/web/sse.html")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(String::class.java)
+            .consumeWith { assert(it.responseBody!!.contains("sse-ticket stream")) { "sse page content missing" } }
     }
 
     @Test

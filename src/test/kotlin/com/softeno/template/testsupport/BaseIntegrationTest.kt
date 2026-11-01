@@ -16,7 +16,6 @@ import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
-import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -28,8 +27,10 @@ import org.testcontainers.utility.DockerImageName
 /**
  * Shared base for every integration test (the `*IT` files): boots the whole app
  * under the `integration` profile (permit-all test SecurityConfig) on a random
- * port with Testcontainers Kafka + Mongo, and wipes users/permissions between
- * tests. The context is rebuilt per class (@DirtiesContext) so no state leaks.
+ * port with Testcontainers Kafka + Mongo, and wipes users/permissions after
+ * every test. The context is CACHED and shared across all subclasses (tests use
+ * unique R-generated data, so no state leaks) — rebuilding it per class cost
+ * ~5 s per class.
  */
 @SpringBootTest(
     classes = [SoftenoReactiveMongoApp::class],
@@ -44,7 +45,6 @@ import org.testcontainers.utility.DockerImageName
 @AutoConfigureJson
 @AutoConfigureGraphQl
 @AutoConfigureGraphQlTester
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 abstract class BaseIntegrationTest {
 
     companion object {

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <!--
-  chat/chat.html — browser chat dev tool for this template (NOT a product).
+  web/chat.html — browser chat dev tool for this template (NOT a product).
 
-  Served by the backend at http://localhost:8080/chat/chat.html (see
-  WsChatToolConfig; /chat/** is permitAll). The page always talks to the backend
+  Served by the backend at http://localhost:8080/web/chat.html (see
+  WebToolConfig; /web/** is permitAll). The page always talks to the backend
   at http://localhost:8080 regardless of where it is loaded from, so it also
   works from a plain static server, e.g.:
-    (cd chat && python3 -m http.server 3000)   # then http://localhost:3000/chat.html
+    (cd web && python3 -m http.server 3000)   # then http://localhost:3000/chat.html
 
   Flow (one-time-ticket WebSocket auth):
     keycloak-js (CDN) check-sso -> login -> getAccessToken

@@ -3,6 +3,7 @@ package com.softeno.template.app.kafka
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.JsonNode
+import com.softeno.template.app.user.notification.SseSubscriptionRegistry
 import com.softeno.template.sample.websocket.WebSocketNotificationSender
 import org.apache.commons.logging.LogFactory
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -14,6 +15,7 @@ import tools.jackson.databind.ObjectMapper
 class KafkaKeycloakController(
     private val objectMapper: ObjectMapper,
     private val ws: WebSocketNotificationSender,
+    private val sse: SseSubscriptionRegistry,
 ) {
     private val log = LogFactory.getLog(javaClass)
 
@@ -30,13 +32,15 @@ class KafkaKeycloakController(
         log.info("[kafka] rx keycloak mapped: $dto")
 
         // Logout propagation: close the user's live WebSocket sessions (LOGGED_OUT
-        // frame + 4403) via the reverse index. LOGIN/REGISTER are informational here.
+        // frame + 4403) and SSE streams (logged_out event + completion) via the
+        // reverse indexes. LOGIN/REGISTER are informational here.
         // Note: Keycloak logout does NOT revoke outstanding access tokens — the
         // token `exp` ceiling (sweeper) remains the backstop. Keep access tokens short.
         when (dto.type) {
             KeycloakEventType.LOGOUT -> {
-                val closed = ws.revokeUser(dto.userId)
-                log.info("[kafka] logout: revoked $closed ws session(s) for user: ${dto.userId}")
+                val closedWs = ws.revokeUser(dto.userId)
+                val closedSse = sse.revokeUser(dto.userId)
+                log.info("[kafka] logout: revoked $closedWs ws session(s) + $closedSse sse subscription(s) for user: ${dto.userId}")
             }
             else -> Unit
         }

@@ -10,12 +10,10 @@ fun aChatConfig(
     staleCheck: Boolean = false,
     heartbeatIntervalSeconds: Int = 10,
     staleCheckThresholdSeconds: Int = 30,
-    ticketTtlSeconds: Int = 10,
     allowedOrigins: List<String> = listOf(WS_ALLOWED_ORIGIN),
 ): ChatConfigProperties = ChatConfigProperties(
     staleCheck = staleCheck,
     heartbeatIntervalSeconds = heartbeatIntervalSeconds,
     staleCheckThresholdSeconds = staleCheckThresholdSeconds,
-    ticketTtlSeconds = ticketTtlSeconds,
     allowedOrigins = allowedOrigins,
 )

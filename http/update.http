@@ -1,3 +1,18 @@
-###
+### run auth.http first to get oauthToken
+
+### subscribe with bearer (API/service clients)
 GET {{host}}/update/user
-Content-Type: text/event-stream
+Authorization: Bearer {{oauthToken}}
+Accept: text/event-stream
+
+### browser-style: mint a one-time SSE ticket (POST = CSRF-safe mint, ADR-0002)
+POST {{host}}/sse-ticket
+Authorization: Bearer {{oauthToken}}
+
+> {%
+    client.global.set("sseTicket", response.body.ticket)
+%}
+
+### subscribe with the ticket — single-use: re-mint before every (re)connect
+GET {{host}}/update/user?ticket={{sseTicket}}
+Accept: text/event-stream

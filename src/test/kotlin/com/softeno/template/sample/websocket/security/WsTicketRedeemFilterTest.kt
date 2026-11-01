@@ -1,5 +1,10 @@
 package com.softeno.template.sample.websocket.security
 
+import com.softeno.template.app.ticket.TicketFixture
+import com.softeno.template.app.ticket.TicketOrigin
+import com.softeno.template.app.ticket.TicketProperties
+import com.softeno.template.app.ticket.TicketStore
+import com.softeno.template.sample.websocket.ChatConfigProperties
 import com.softeno.template.sample.websocket.WS_ALLOWED_ORIGIN
 import com.softeno.template.sample.websocket.aChatConfig
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -7,12 +12,12 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
-import org.springframework.web.server.ServerWebExchange
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
 import java.net.URI
@@ -22,10 +27,10 @@ import java.net.URLEncoder
  * Filter-contract unit tests against mock exchanges: the exact pre-upgrade
  * decision table (Origin allowlist, ticket redeem, pass-throughs).
  */
-class WsTicketRedeemFilterTest : WsTicketFixture {
+class WsTicketRedeemFilterTest : TicketFixture {
 
     private val config = aChatConfig()
-    private val store = TicketStore(config)
+    private val store = TicketStore(TicketProperties())
     private val filter = WsTicketRedeemFilter(store, config)
 
     private fun exchange(
@@ -136,6 +141,18 @@ class WsTicketRedeemFilterTest : WsTicketFixture {
         filter.filter(replay, chain2).block()
         assertEquals(401, replay.response.statusCode!!.value())
         assertEquals(false, chain2.called)
+    }
+
+    @Test
+    fun `SSE-origin ticket cannot open a WebSocket handshake`() {
+        val ticket = store.issue(aTicketRecord(origin = TicketOrigin.SSE))
+        val chain = RecordingChain()
+
+        val exchange = exchange(ticket = ticket)
+        filter.filter(exchange, chain).block()
+
+        assertEquals(401, exchange.response.statusCode!!.value())
+        assertEquals(false, chain.called)
     }
 
     @Test
