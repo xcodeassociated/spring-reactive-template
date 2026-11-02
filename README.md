@@ -91,7 +91,7 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   │   ├── ticket/           # shared one-time-ticket auth for both transports (store, redeem, origin)
 │   │   ├── ws/                 # adapter 1: session registry, handlers, mint/redeem, sweeper
 │   │   ├── sse/                # adapter 2: update emitter, subscription registry, mint/redeem, sweeper
-│   │   └── kafka/            # listeners: user events → broadcast, Keycloak LOGOUT → revoke (port only)
+│   │   └── kafka/            # listeners: user events → broadcast, Keycloak LOGOUT/admin events → revoke (port only)
 │   ├── sample/                   # ← feature demos; delete freely
 │   │   ├── http/                 # coroutine controller & functional router, external WebClient + circuit breaker
 │   │   └── proto/                # gRPC server service & client channel config

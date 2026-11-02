@@ -1,6 +1,7 @@
 package com.softeno.template.notifications.ws
 
 import com.softeno.template.SoftenoReactiveMongoApp
+import com.softeno.template.notifications.kafka.KafkaKeycloakAdminController
 import com.softeno.template.notifications.kafka.KafkaKeycloakController
 import com.softeno.template.notifications.kafka.KeycloakEventFixture
 import com.softeno.template.testsupport.R
@@ -53,6 +54,9 @@ class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
 
     @Autowired
     lateinit var kafkaKeycloakController: KafkaKeycloakController
+
+    @Autowired
+    lateinit var kafkaKeycloakAdminController: KafkaKeycloakAdminController
 
     @Autowired
     lateinit var messageService: CoroutineMessageService
@@ -121,6 +125,20 @@ class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
         socket.awaitContent("HANDSHAKE")
 
         runBlocking { kafkaKeycloakController.listen(keycloakEvent("LOGOUT", sub)) }
+
+        socket.awaitContent(WsControl.LOGGED_OUT)
+        assertEquals(4403, socket.awaitClose())
+    }
+
+    @Test
+    fun `admin session-logout event closes the session with LOGGED_OUT and 4403`() {
+        val sub = R.sub("admin-logout")
+        val socket = openSocket(mint(sub))
+        socket.awaitContent("HANDSHAKE")
+
+        runBlocking {
+            kafkaKeycloakAdminController.listen(keycloakAdminEvent("USER", "ACTION", "users/$sub/logout"))
+        }
 
         socket.awaitContent(WsControl.LOGGED_OUT)
         assertEquals(4403, socket.awaitClose())

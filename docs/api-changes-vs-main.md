@@ -14,6 +14,7 @@ realm `app`, client `frontend`. Verified against the running stack (REST + Graph
 | new endpoints | — | `POST /ws-ticket`, `POST /sse-ticket` |
 | WS lifecycle | connect frames + ping/pong | + control contract: close 4401/4403, `REAUTH_REQUIRED`/`LOGGED_OUT` frames, Origin allowlist (403) |
 | SSE lifecycle | `heartbeat`, `update` | + `token_expired`, `logged_out` named events; ticket single-use ⇒ re-mint on reconnect |
+| revocation sources | user-initiated logout only | + admin-initiated session termination / user delete revoked instantly via `keycloak-admin-events` listener |
 | `/coroutine/*` JSON, GraphQL schema, error envelope | — | **byte-identical, no changes** |
 
 ## 1. Removed (breaking)
