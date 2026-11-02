@@ -2,6 +2,7 @@ package com.softeno.template.notifications.sse
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.softeno.template.SoftenoReactiveMongoApp
+import com.softeno.template.notifications.kafka.KafkaKeycloakAdminController
 import com.softeno.template.notifications.kafka.KafkaKeycloakController
 import com.softeno.template.notifications.kafka.KeycloakEventFixture
 import com.softeno.template.testsupport.R
@@ -70,6 +71,9 @@ class SseTicketAuthIT : KeycloakEventFixture {
 
     @Autowired
     lateinit var kafkaKeycloakController: KafkaKeycloakController
+
+    @Autowired
+    lateinit var kafkaKeycloakAdminController: KafkaKeycloakAdminController
 
     @Autowired
     lateinit var registry: SseSubscriptionRegistry
@@ -221,6 +225,43 @@ class SseTicketAuthIT : KeycloakEventFixture {
         stream.awaitEnd()
         awaitUntil(what = "subscription unregistered for $sub") {
             registry.subscriptionsFor(sub).isEmpty()
+        }
+    }
+
+    @Test
+    fun `admin session-logout event sends logged_out and ends the stream`() {
+        val sub = R.sub("admin-logout")
+        val stream = subscribe("/update/user?ticket=${mintSse(sub)}")
+
+        runBlocking {
+            kafkaKeycloakAdminController.listen(keycloakAdminEvent("USER", "ACTION", "users/$sub/logout"))
+        }
+
+        stream.awaitEvent(SseControl.LOGGED_OUT)
+        stream.awaitEnd()
+        awaitUntil(what = "subscription unregistered for $sub") {
+            registry.subscriptionsFor(sub).isEmpty()
+        }
+    }
+
+    @Test
+    fun `non-logout admin ACTION leaves the stream alive`() {
+        val sub = R.sub("admin-keep")
+        val stream = subscribe("/update/user?ticket=${mintSse(sub)}")
+        try {
+            awaitUntil(what = "subscription indexed for $sub") {
+                registry.subscriptionsFor(sub).isNotEmpty()
+            }
+
+            // listen() is synchronous — had this revoked, it would have by now
+            runBlocking {
+                kafkaKeycloakAdminController.listen(keycloakAdminEvent("USER", "ACTION", "users/$sub/impersonate"))
+            }
+
+            assertTrue(registry.subscriptionsFor(sub).isNotEmpty(), "stream must survive a non-logout ACTION")
+            assertTrue(stream.events.none { it.event() == SseControl.LOGGED_OUT }, "no logged_out frame")
+        } finally {
+            stream.cancel()
         }
     }
 

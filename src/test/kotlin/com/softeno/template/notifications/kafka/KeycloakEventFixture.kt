@@ -18,6 +18,23 @@ interface KeycloakEventFixture {
 
     fun keycloakEvent(type: String, userId: String, id: String = R.uuid()): ConsumerRecord<String, JsonNode> =
         ConsumerRecord("keycloak-events", 0, 0, null, eventJsonMapper.readTree(keycloakEventJson(type, userId, id)))
+
+    /**
+     * Admin-event payload as delivered on the admin topic: the wire shape uses a
+     * slash-joined `resourcePath` string (e.g. `users/{id}/logout`) plus
+     * authDetails/representation/error fields the listener must tolerate.
+     */
+    fun keycloakAdminEvent(resourceType: String, operationType: String, resourcePath: String?, id: String = R.uuid()): ConsumerRecord<String, JsonNode> =
+        ConsumerRecord(
+            "keycloak-admin-events", 0, 0, null,
+            eventJsonMapper.readTree(
+                """{"id":"$id","time":${System.currentTimeMillis()},"realmId":"app","realmName":"app",""" +
+                    """"authDetails":{"realmId":"master","userId":"${R.uuid()}"},""" +
+                    """"resourceType":"$resourceType","operationType":"$operationType",""" +
+                    """"resourcePath":${resourcePath?.let { "\"$it\"" } ?: "null"},"representation":null,"error":null,""" +
+                    """"resourceTypeAsString":"$resourceType"}"""
+            )
+        )
 }
 
 private val eventJsonMapper = com.fasterxml.jackson.databind.ObjectMapper()
