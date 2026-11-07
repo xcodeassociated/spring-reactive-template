@@ -124,6 +124,10 @@ dependencies {
 	testImplementation "org.springframework.boot:spring-boot-starter-opentelemetry-test:${springBootVersion}"
 	implementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:${logbackAppenderVersion}"
 	implementation "io.opentelemetry:opentelemetry-api-incubator:1.62.0-alpha"
+	// opentelemetry-proto is generated against protobuf 4.34; Boot's BOM manages
+	// protobuf-java down to 4.33.4, which trips ProtobufRuntimeVersionException when
+	// the OTLP exporter loads its protos. Keep the runtime at/above the gencode version.
+	implementation "com.google.protobuf:protobuf-java:4.34.0"
 
 	// grpc
 	implementation "io.grpc:grpc-services:${grpcServicesVersion}"
