@@ -4,6 +4,8 @@ import com.softeno.template.SoftenoReactiveMongoApp
 import com.softeno.template.notifications.kafka.KafkaKeycloakAdminController
 import com.softeno.template.notifications.kafka.KafkaKeycloakController
 import com.softeno.template.notifications.kafka.KeycloakEventFixture
+import com.softeno.template.notifications.ticket.FakeTicketStore
+import com.softeno.template.notifications.ticket.TicketStore
 import com.softeno.template.testsupport.R
 import com.softeno.template.testsupport.awaitUntil
 import kotlinx.coroutines.runBlocking
@@ -11,9 +13,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Primary
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.socket.WebSocketSession
 
@@ -24,7 +30,11 @@ import org.springframework.web.reactive.socket.WebSocketSession
  *
  * Auth is simulated by the `X-Test-Sub` header (TestBearerWebFilter) because the
  * `integration` profile security is permit-all; the ticket redeem filter, mint
- * controller, session registry and sweeper under test are the real ones.
+ * controller, session registry and sweeper under test are the real ones. The
+ * [TicketStore] port is served by [FakeTicketStore] (nested config) — the real
+ * MongoTicketStore needs a live Mongo, which a Testcontainers-free run has no
+ * guarantee of (CI hangs on server-selection); the Mongo adapter's own contract
+ * is covered by TicketStoreIT.
  * The client harness (mint / socket / failure assertions) lives in
  * [WsTicketAuthAbility]; keycloak events come from [KeycloakEventFixture].
  */
@@ -42,6 +52,7 @@ import org.springframework.web.reactive.socket.WebSocketSession
         "com.softeno.sse.sweep-interval-seconds=1",
     ],
 )
+@Import(WsTicketAuthIT.TicketStoreTestConfig::class)
 @AutoConfigureWebTestClient(timeout = "30000")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
@@ -252,5 +263,16 @@ class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
         }
         assertEquals(emptySet<WebSocketSession>(), messageService.sessionsFor(sub),
             "transport error must unregister the session")
+    }
+
+    @TestConfiguration
+    class TicketStoreTestConfig {
+        // this test is Testcontainers-free, so the production MongoTicketStore
+        // has no Mongo to talk to (its calls would hang on server-selection);
+        // the in-memory fake honours the same contract and keeps the test fast.
+        // the Mongo adapter itself is covered by TicketStoreIT.
+        @Bean
+        @Primary
+        fun ticketStore(): TicketStore = FakeTicketStore()
     }
 }
