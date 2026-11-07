@@ -123,6 +123,7 @@ dependencies {
 	implementation "org.springframework.boot:spring-boot-starter-opentelemetry:${springBootVersion}"
 	testImplementation "org.springframework.boot:spring-boot-starter-opentelemetry-test:${springBootVersion}"
 	implementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:${logbackAppenderVersion}"
+	implementation "io.opentelemetry:opentelemetry-api-incubator:1.62.0-alpha"
 
 	// grpc
 	implementation "io.grpc:grpc-services:${grpcServicesVersion}"
