@@ -1,12 +1,11 @@
 package com.softeno.template.notifications.ws.security
 
+import com.softeno.template.notifications.ticket.FakeTicketStore
 import com.softeno.template.notifications.ticket.TicketFixture
 import com.softeno.template.notifications.ticket.TicketOrigin
-import com.softeno.template.notifications.ticket.TicketProperties
-import com.softeno.template.notifications.ticket.TicketStore
-import com.softeno.template.notifications.ws.ChatConfigProperties
 import com.softeno.template.notifications.ws.WS_ALLOWED_ORIGIN
 import com.softeno.template.notifications.ws.aChatConfig
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -25,13 +24,18 @@ import java.net.URLEncoder
 
 /**
  * Filter-contract unit tests against mock exchanges: the exact pre-upgrade
- * decision table (Origin allowlist, ticket redeem, pass-throughs).
+ * decision table (Origin allowlist, ticket redeem, pass-throughs). Uses the
+ * in-memory [FakeTicketStore] so the filter logic is tested fast and in
+ * isolation; the Mongo store's own contract is covered by TicketStoreIT.
  */
 class WsTicketRedeemFilterTest : TicketFixture {
 
     private val config = aChatConfig()
-    private val store = TicketStore(TicketProperties())
+    private val store = FakeTicketStore()
     private val filter = WsTicketRedeemFilter(store, config)
+
+    private fun issue(record: com.softeno.template.notifications.ticket.TicketRecord, ttl: Long = 10): String =
+        runBlocking { store.issue(record, ttl) }
 
     private fun exchange(
         path: String = "/ws",
@@ -77,7 +81,7 @@ class WsTicketRedeemFilterTest : TicketFixture {
 
     @Test
     fun `foreign origin is rejected with 403 and the chain never runs`() {
-        val exchange = exchange(origin = "http://evil.example", ticket = store.issue(aTicketRecord()))
+        val exchange = exchange(origin = "http://evil.example", ticket = issue(aTicketRecord()))
         val chain = RecordingChain()
 
         filter.filter(exchange, chain).block()
@@ -113,7 +117,7 @@ class WsTicketRedeemFilterTest : TicketFixture {
     @Test
     fun `no Origin header passes the check (non-browser clients)`() {
         val record = aTicketRecord()
-        val exchange = exchange(origin = null, ticket = store.issue(record))
+        val exchange = exchange(origin = null, ticket = issue(record))
         val chain = RecordingChain()
 
         filter.filter(exchange, chain).block()
@@ -126,7 +130,7 @@ class WsTicketRedeemFilterTest : TicketFixture {
     @Test
     fun `valid ticket is redeemed atomically and binds mint-time identity`() {
         val record = aTicketRecord()
-        val ticket = store.issue(record)
+        val ticket = issue(record)
         val chain = RecordingChain()
 
         filter.filter(exchange(ticket = ticket), chain).block()
@@ -144,20 +148,8 @@ class WsTicketRedeemFilterTest : TicketFixture {
     }
 
     @Test
-    fun `SSE-origin ticket cannot open a WebSocket handshake`() {
-        val ticket = store.issue(aTicketRecord(origin = TicketOrigin.SSE))
-        val chain = RecordingChain()
-
-        val exchange = exchange(ticket = ticket)
-        filter.filter(exchange, chain).block()
-
-        assertEquals(401, exchange.response.statusCode!!.value())
-        assertEquals(false, chain.called)
-    }
-
-    @Test
     fun `trailing-slash ws path is normalized so the ticket is not wasted`() {
-        val ticket = store.issue(aTicketRecord())
+        val ticket = issue(aTicketRecord())
         val chain = RecordingChain()
 
         filter.filter(exchange(path = "/ws/", ticket = ticket), chain).block()

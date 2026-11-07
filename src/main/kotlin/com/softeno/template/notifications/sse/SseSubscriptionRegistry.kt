@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.slf4j.MDCContext
 import org.apache.commons.logging.LogFactory
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.context.event.ContextClosedEvent
+import org.springframework.context.event.EventListener
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
@@ -132,6 +134,27 @@ class SseSubscriptionRegistry(
         log.info("sse: revoking ${ids.size} subscription(s) for user: $userId")
         ids.forEach { id -> subscriptions[id]?.let { closeWithControl(it, SseControl.LOGGED_OUT) } }
         return ids.size
+    }
+
+    /**
+     * Graceful shutdown: close every live stream the moment the context starts
+     * closing. Without this the socket outlives the acceptor — REST already
+     * refuses while heartbeats keep flowing, so clients sit on a
+     * technically-open stream of a dying server and their badges honestly
+     * lie. Completing the channels sends every client through the normal
+     * end-of-stream path: reconnect (to the next instance, or back off).
+     */
+    @EventListener(ContextClosedEvent::class)
+    fun closeAll() {
+        val all = subscriptions.values.toList()
+        if (all.isEmpty()) return
+        log.info("sse: shutting down, closing ${all.size} subscription(s)")
+        all.forEach { handle ->
+            if (handle.closed.compareAndSet(false, true)) {
+                runCatching { handle.channel.close() }
+                unregister(handle)
+            }
+        }
     }
 
     /** Live subscription ids bound to [userId] (reverse-index view, for tests/ops). */

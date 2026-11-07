@@ -43,7 +43,6 @@ SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 | gRPC server (reflection enabled) | localhost:9080 |
 | Keycloak (admin/admin) | http://localhost:8090 |
 | Chat dev page (WebSocket + ticket auth) | http://localhost:8080/web/chat.html (or serve `web/` from :3000) |
-| SSE dev page (ticket-auth stream + lifecycle) | http://localhost:8080/web/sse.html (or serve `web/` from :3000) |
 
 Profiles: `local` (dev, OTLP export disabled), `docker` (used by the image), `integration` (test security bypass).
 
@@ -76,19 +75,19 @@ Helper requests for IntelliJ HTTP Client live in [`http/`](http) — copy `http-
 │   ├── config/env.properties     # local secrets/URLs (from template — keep out of git)
 │   ├── graphql/schema.graphqls   # GraphQL schema
 │   └── logback-spring.xml        # OTel log appender config
-├── web/                          # static dev tools served at /web/: chat.html (ticket-auth WebSocket), sse.html (ticket-auth SSE)
+├── web/                          # static dev tools served at /web/: chat.html (ticket-auth WebSocket)
 ├── src/main/kotlin/com/softeno/template/
 │   ├── SoftenoReactiveMongoApp.kt
 │   ├── users/                    # ← APPLICATION CORE: user + permission (db documents), event publish
 │   │   ├── UserService.kt        # documents in/out; permissions embedded as snapshots (ADR-0005); ends at UserEventsPublisher
-│   │   ├── UserEvents.kt         # UserCreatedEvent + publisher — the core→notifications boundary (Kafka tx)
+│   │   ├── UserEvents.kt         # UserEvent (CREATED/UPDATED/DELETED) + publisher — the core→notifications boundary (Kafka tx)
 │   │   ├── api/                  # REST controllers + DTOs, GraphQL controller
 │   │   ├── db/                   # UserDocument + repositories
 │   │   └── permission/           # permission documents, service, REST/GraphQL api
 │   ├── notifications/            # ← OPTIONAL feature (ADR-0003/0004): delete it and the core still runs
 │   │   ├── Notification.kt     # the port: broadcast + revokeUser
 │   │   ├── Message.kt        # transport-neutral envelope {from, to, content}
-│   │   ├── ticket/           # shared one-time-ticket auth for both transports (store, redeem, origin)
+│   │   ├── ticket/           # one-time-ticket auth, WebSocket-only since ADR-0007 (store, redeem, origin)
 │   │   ├── ws/                 # adapter 1: session registry, handlers, mint/redeem, sweeper
 │   │   ├── sse/                # adapter 2: update emitter, subscription registry, mint/redeem, sweeper
 │   │   └── kafka/            # listeners: user events → broadcast, Keycloak LOGOUT/admin events → revoke (port only)
@@ -116,7 +115,7 @@ Everything under `sample/` and the `users`/`permission` domains are **examples**
 - **Kafka** — JSON serializer/deserializer config, users-core event publish (tx) + listeners (rx, Keycloak events), compose services.
 - **GraphQL** — spring-graphql controllers for both domains, GraphiQL enabled.
 - **gRPC** — Kotlin coroutine stubs generated from `schema.proto`, server with reflection, named client channels.
-- **Notifications (WebSocket + SSE)** — one `Notification` port, two adapters (ADR-0004): **WebSockets** (coroutine, `com.softeno.ws.enabled`; heartbeat, stale-session sweeper, one-time-ticket auth (§ [WebSocket chat auth](#websocket-chat-auth-one-time-ticket)), token-expiry/logout close codes) and **Server-Sent Events** (`/update/user` with bearer **or** one-time ticket (`POST /sse-ticket` → `?ticket=`), token ceiling (`token_expired`), logout close (`logged_out`) — [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md)). The Kafka listeners drive the port; the users core never knows transports exist (ADR-0003).
+- **Notifications (WebSocket + SSE)** — one `Notification` port, two adapters (ADR-0004): **WebSockets** (coroutine, `com.softeno.ws.enabled` — on by default, `false` removes the whole WS feature incl. `/ws-ticket` and the `/ws` mapping; heartbeat, stale-session sweeper, one-time-ticket auth (§ [WebSocket chat auth](#websocket-chat-auth-one-time-ticket)), token-expiry/logout close codes) and **Server-Sent Events** (`/update/user` with a bearer JWT — the FE streams via fetch ([ADR-0007](docs/adr/0007-sse-bearer-fetch-auth.md)); token ceiling (`token_expired`), logout close (`logged_out`)). The Kafka listeners drive the port — user lifecycle events (`USER_CREATED`/`USER_UPDATED`/`USER_DELETED` broadcasts, ADR-0006) and Keycloak auth/admin events; the users core never knows transports exist (ADR-0003).
 - **Resilience4j circuit breaker** — wrapping an external `WebClient` call.
 - **OpenAPI** — springdoc Swagger UI.
 - **Observability** — Actuator + Prometheus, OpenTelemetry traces/metrics/logs over OTLP, trace-correlated logging.
@@ -127,13 +126,13 @@ The build file groups dependencies under comment headers (`// kafka`, `// graphq
 
 | Feature | Delete | Also remove |
 |---|---|---|
-| Kafka | `config/kafka/` + `users/UserEvents.kt` + `notifications/kafka/` | `// kafka` deps, `spring.kafka.*` + `com.softeno.kafka.*` props, compose services, the `userEventsPublisher.publishUserCreated` call in `UserService` |
+| Kafka | `config/kafka/` + `users/UserEvents.kt` + `notifications/kafka/` | `// kafka` deps, `spring.kafka.*` + `com.softeno.kafka.*` props, compose services, the `userEventsPublisher.publish` calls in `UserService` (create/update/delete) |
 | GraphQL | `users/api/UserGraphqlController.kt`, `users/permission/api/PermissionGraphqlController.kt`, `config/graphql/` | `// graphql` deps, `resources/graphql/`, `spring.graphql.*` props |
 | gRPC | `sample/proto/`, `src/main/proto/` | `// grpc` deps + protobuf plugin in `build.gradle`, `spring.grpc.*` props |
-| Notifications (whole feature) | `notifications/` | `com.softeno.{ws,sse,ticket}.*` props, `/ws/**` + `/ws-ticket` + `/sse-ticket` + `/update/**` security rules, `web/chat.html` + `web/sse.html`, `http/ws.http` + `http/update.http` |
+| Notifications (whole feature) | `notifications/` | `com.softeno.{ws,sse,ticket}.*` props, `/ws/**` + `/ws-ticket` + `/update/**` security rules, `web/chat.html`, `http/ws.http` + `http/update.http` |
 | — WebSocket adapter only | `notifications/ws/`, `web/chat.html` | `com.softeno.ws.*` props, `/ws/**` + `/ws-ticket` rules; the `List<Notification>` wiring needs no change (ADR-0004) |
-| — SSE adapter only | `notifications/sse/`, `web/sse.html` | `com.softeno.sse.*` props, `/update/**` + `/sse-ticket` rules, `http/update.http` |
-| — One-time tickets | `notifications/ticket/` | only after both transports above are removed; `com.softeno.ticket.*` props, `/ws-ticket` + `/sse-ticket` rules |
+| — SSE adapter only | `notifications/sse/` | `com.softeno.sse.*` props, `/update/**` rule, `http/update.http` |
+| — One-time tickets | `notifications/ticket/` | only after the WebSocket adapter above is removed; `com.softeno.ticket.*` props, `/ws-ticket` rule |
 | Circuit breaker / external client | `sample/http/external/` | `// circuit breaker` dep, `com.softeno.external.*` props, references in `config/http/WebExceptionHandler.kt` (the `externalGraphQl` bean itself lives in `sample/http/external/config/` now) |
 | OpenAPI | — | `// springdoc` deps, `springdoc.*` props |
 | OpenTelemetry | `config/opentelemetry/` | otel deps, `management.opentelemetry.*` props, simplify `logback-spring.xml` |
@@ -198,35 +197,23 @@ config allows `http://localhost:3000` (kcadm command for `:8080` in the file hea
 **Try it without a browser:** `http/ws.http` (IntelliJ HTTP Client) mints tickets
 and drives the socket with `WEBSOCKET` requests.
 
-## SSE stream auth (one-time ticket + lifecycle)
+## SSE stream auth (bearer-over-fetch + lifecycle)
 
-Decision record and alternatives: [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md).
-`GET /update/user` is a long-lived stream authenticated at the request only, so the
-ticket + lifecycle machinery keeps it correct after the token expires.
+Decision record: [ADR-0007](docs/adr/0007-sse-bearer-fetch-auth.md) (supersedes the SSE half of
+[ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md)).
+`GET /update/user` is a long-lived stream authenticated at the request with a bearer JWT — the FE
+uses a fetch-based stream client, so no ticket roundtrip; the lifecycle machinery (token ceiling
+`token_expired`, logout `logged_out`, sweeper, heartbeat) keeps it correct after the token expires.
 
-1. **API/service clients** send a normal `Authorization: Bearer` header.
-2. **Browsers** can't set headers on `EventSource`, so: `POST /sse-ticket` (bearer) →
-   `{ "ticket": "...", "expiresIn": 10 }` → `new EventSource("/update/user?ticket=...")`.
-   The ticket is redeemed before any body bytes (401 on missing/expired/replayed, or a
-   ticket minted for the WebSocket transport — tickets are transport-bound).
-   Because `EventSource` auto-reconnects by replaying the URL, the ticket is single-use
-   and the client **re-mints on `error`** before reconnecting.
-3. **Lifecycle:** the stream is bound to the mint-time identity. Past the token ceiling
-   the sweeper emits `event: token_expired` and ends the stream (client refreshes +
-   re-mints + reconnects); a Keycloak `LOGOUT` event emits `event: logged_out` and ends
-   it (client stops). Both transports share `notifications/ticket/` and the Kafka logout consumer.
+1. **API/service clients and the browser FE** both send a normal `Authorization: Bearer` header
+   (the FE uses a fetch-based stream reader — EventSource is not involved).
+2. **Lifecycle:** the stream is bound to the connect-time identity. Past the token ceiling the
+   sweeper emits `event: token_expired` and ends the stream (client refreshes + reconnects); a
+   Keycloak `LOGOUT` event emits `event: logged_out` and ends it (client stops forever). The same
+   revocation consumer also drives WebSocket session termination; only the WS handshake still
+   uses `notifications/ticket/`.
 
-**Try it:** `http/update.http` — bearer subscribe, then mint + ticket subscribe.
-
-**SSE page:** `web/sse.html`, served at http://localhost:8080/web/sse.html (and from a
-static :3000 server like the chat page) — keycloak-js → login → Subscribe (mint +
-`EventSource`) → heartbeat events appear; the *Create user* button triggers a
-`USER_CREATED` broadcast that arrives as an `update` event. The page implements the
-full client contract and doubles as the reference frontend implementation: re-mints
-a fresh ticket on `error` before reconnecting (EventSource would otherwise replay the
-used ticket in a 401 loop), refreshes + re-mints + reconnects on `token_expired`, and
-stops without reconnecting on `logged_out`. Open it in two tabs and press *Keycloak
-logout* in one to watch revocation close the other tab's stream.
+**Try it:** `http/update.http` — bearer subscribe.
 
 ## Configuration reference
 
@@ -239,10 +226,14 @@ Significant design decisions are recorded in [`docs/adr/`](docs/adr):
 | ADR | Decision | Status |
 |---|---|---|
 | [ADR-0001](docs/adr/0001-websocket-one-time-ticket-auth.md) | WebSocket chat auth via one-time tickets (+ session lifecycle: ceiling sweeper, logout revocation, 4401/4403 contract) | Accepted |
-| [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md) | SSE auth via shared one-time tickets + stream lifecycle (transport-bound tickets, close-at-exp `token_expired`, logout `logged_out`) | Accepted |
+| [ADR-0002](docs/adr/0002-sse-ticket-auth-stream-lifecycle.md) | SSE auth via shared one-time tickets + stream lifecycle (transport-bound tickets, close-at-exp `token_expired`, logout `logged_out`) | Superseded by ADR-0007 |
 | [ADR-0003](docs/adr/0003-application-structure-users-notifications-sample.md) | Application structure: `users` core → Kafka → optional `notifications` feature, `sample` demos; no domain wrapper classes | Accepted |
 | [ADR-0004](docs/adr/0004-notifications-hexagon-port-adapters.md) | Notifications hexagon: one `Notification` port, ws + sse adapters, listeners on the port only | Accepted |
 | [ADR-0005](docs/adr/0005-embedded-permission-snapshots-fanout.md) | Permissions embedded in users as snapshots, with fan-out on permission update/delete (supersedes ADR-0003's read tuple) | Accepted |
+| [ADR-0006](docs/adr/0006-user-lifecycle-events-broadcasts.md) | User lifecycle events: one `UserEvent` wire type with action enum, broadcast-only via the `Notification` port (supersedes ADR-0003's `UserCreatedEvent`) | Accepted |
+| [ADR-0007](docs/adr/0007-sse-bearer-fetch-auth.md) | SSE auth via bearer-over-fetch; one-time tickets WebSocket-only (supersedes ADR-0002's SSE half) | Accepted |
+| [ADR-0008](docs/adr/0008-multi-instance-notification-fanout.md) | Multi-instance notification fan-out via per-instance consumer groups + `latest` offset (extends ADR-0006; local-only side-effect invariant) | Accepted |
+| [ADR-0009](docs/adr/0009-mongo-backed-tickets.md) | DB-backed one-time tickets: Mongo `findAndRemove` + TTL index — multi-instance WS handshake (closes ADR-0008's open item) | Accepted |
 
 ADRs are **immutable** once accepted: when a decision or flow changes, do not rewrite
 history — add a new numbered ADR explaining the new context and decision, and mark the

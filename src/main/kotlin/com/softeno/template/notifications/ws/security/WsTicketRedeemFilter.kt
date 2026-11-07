@@ -26,11 +26,12 @@ import reactor.core.publisher.Mono
  * Contract:
  * - exact-match Origin allowlist on every handshake (RFC 6455 10.2, CSWSH/CWE-1385);
  *   non-browser clients may omit Origin — browsers always send it.
- * - valid ticket -> atomic compare-and-delete + origin check (SSE-minted tickets
- *   cannot open a WebSocket), rebuild an Authentication from the mint-time claims
- *   and write it into the reactive security context, so the handler's existing
- *   principal read and the /ws authenticated rule keep working.
- * - expired/replayed/wrong-origin ticket -> 401 before the upgrade.
+ * - valid ticket -> atomic compare-and-delete + origin check (a ticket minted
+ *   for another transport cannot open a WebSocket), rebuild an Authentication
+ *   from the mint-time claims and write it into the reactive security context,
+ *   so the handler's existing principal read and the /ws authenticated rule
+ *   keep working.
+ * - expired/replayed/unknown ticket -> 401 before the upgrade.
  * - no ticket -> pass through: the security chain then rejects anonymous
  *   upgrades with 401, while existing header-based (non-browser) clients still work.
  *
@@ -38,7 +39,7 @@ import reactor.core.publisher.Mono
  * single-use and 10 s-lived (never an `access_token=`, RFC 9700 4.3.2).
  * Never log tickets.
  */
-@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true", matchIfMissing = true)
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 50)
 class WsTicketRedeemFilter(
@@ -67,16 +68,27 @@ class WsTicketRedeemFilter(
         val ticket = request.queryParams.getFirst("ticket")
             ?: return chain.filter(exchange) // header-auth or anonymous: the security chain decides
 
-        val record = ticketStore.redeem(ticket, TicketOrigin.WEBSOCKET)
-        if (record == null) {
-            log.warn("ws: [ticket] rejected handshake, missing/expired/replayed ticket")
-            exchange.response.statusCode = HttpStatus.UNAUTHORIZED
-            return exchange.response.setComplete()
-        }
-
-        val authentication = TicketAuthentication.from(record)
-        return chain.filter(exchange)
-            .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication))
+        // Atomic compare-and-delete in Mongo — non-blocking, so it is safe on
+        // the Netty event loop; the store is shared, so a ticket minted on any
+        // instance redeems on any instance. A boolean marker distinguishes
+        // "redeemed + chain ran" from "no record": chain.filter returns
+        // Mono<Void>, which completes empty either way, so switchIfEmpty alone
+        // would misfire on the success path.
+        return ticketStore.redeem(ticket, TicketOrigin.WEBSOCKET)
+            .flatMap { record ->
+                val authentication = TicketAuthentication.from(record)
+                chain.filter(exchange)
+                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication))
+                    .thenReturn(true)
+            }
+            .switchIfEmpty(
+                Mono.defer {
+                    log.warn("ws: [ticket] rejected handshake, missing/expired/replayed ticket")
+                    exchange.response.statusCode = HttpStatus.UNAUTHORIZED
+                    exchange.response.setComplete().thenReturn(false)
+                }
+            )
+            .then()
     }
 
     private fun isWebSocketUpgrade(upgradeHeader: String?): Boolean =

@@ -1,6 +1,6 @@
 # ADR-0002: SSE auth via shared one-time tickets + stream lifecycle enforcement
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0007
 - **Date:** 2026-11-01
 - **Context:** Resolves the `// todo: make this endpoint secure` on `/update/**`; builds on ADR-0001 (WebSocket one-time tickets). Package names follow the ADR-0003 restructure (`notifications/`).
 

@@ -5,6 +5,10 @@ GET {{host}}/coroutine/permissions?page=0&size=10&sort=id&direction=DESC
 Authorization: Bearer {{oauthToken}}
 
 ###
+GET {{host}}/coroutine/permissionsCount
+Authorization: Bearer {{oauthToken}}
+
+###
 POST {{host}}/coroutine/permissions
 Content-Type: application/json
 Authorization: Bearer {{oauthToken}}
@@ -95,6 +99,90 @@ query {
         },
         version
   }
+}
+
+### Permissions (full CRUD via graphql)
+
+GRAPHQL {{host}}/graphql
+Content-Type: application/graphql
+Authorization: Bearer {{oauthToken}}
+
+query {
+    getAllPermissions(page: 0, size: 10, sort: "id", direction: "ASC") {
+        id,
+        name,
+        description,
+        version
+    }
+}
+
+###
+GRAPHQL {{host}}/graphql
+Content-Type: application/graphql
+Authorization: Bearer {{oauthToken}}
+
+query {
+    getPermissionsSize
+}
+
+###
+GRAPHQL {{host}}/graphql
+Content-Type: application/graphql
+Authorization: Bearer {{oauthToken}}
+
+query {
+    getPermission(id: "{{permissionId}}") {
+        id,
+        name,
+        description,
+        version
+    }
+}
+
+###
+GRAPHQL {{host}}/graphql
+Content-Type: application/graphql
+Authorization: Bearer {{oauthToken}}
+
+mutation {
+    createPermission(input: {name: "graphql-test-{{$random.integer(0, 100)}}", description: "graphql test description"}) {
+        id,
+        name,
+        description,
+        version
+    }
+}
+
+> {%
+client.global.set("graphqlPermissionId", response.body.data.createPermission.id)
+client.global.set("graphqlPermissionVersion", response.body.data.createPermission.version)
+ %}
+
+###
+GRAPHQL {{host}}/graphql
+Content-Type: application/graphql
+Authorization: Bearer {{oauthToken}}
+
+mutation {
+    updatePermission(id: "{{graphqlPermissionId}}", input: {name: "graphql-test-changed: {{$uuid}}", description: "graphql test description changed!", version: {{graphqlPermissionVersion}}}) {
+        id,
+        name,
+        description,
+        version
+    }
+}
+
+> {%
+client.global.set("graphqlPermissionVersion", response.body.data.updatePermission.version)
+ %}
+
+###
+GRAPHQL {{host}}/graphql
+Content-Type: application/graphql
+Authorization: Bearer {{oauthToken}}
+
+mutation {
+    deletePermission(id: "{{graphqlPermissionId}}")
 }
 
 ###

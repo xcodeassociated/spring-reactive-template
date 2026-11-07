@@ -37,7 +37,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true", matchIfMissing = true)
 @Configuration
 class CoroutineWebSocketConfig(
     private val coroutineMessageService: CoroutineMessageService,
@@ -218,7 +218,7 @@ class CoroutineWebSocketConfig(
     }
 }
 
-@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true", matchIfMissing = true)
 @Service
 class CoroutineMessageService(
     private val config: ChatConfigProperties

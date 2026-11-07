@@ -108,12 +108,12 @@ class SecurityConfig {
                     // /ws/** is authenticated by the one-time ticket redeemed at the
                     // upgrade (WsTicketRedeemFilter), not by an Authorization header —
                     // browsers cannot send headers on a WebSocket handshake.
-                    // /ws-ticket and /sse-ticket mint those tickets and therefore need
-                    // a real bearer. /update/** (SSE) accepts a bearer OR a one-time
-                    // ticket redeemed by SseTicketRedeemFilter (?ticket= on the stream
-                    // GET) — browsers cannot send headers on EventSource (ADR-0002).
+                    // /ws-ticket mints that ticket and therefore needs a real bearer.
+                    // /update/** (SSE) authenticates with a plain bearer header: the
+                    // FE uses a fetch-based stream client (no EventSource header limit),
+                    // so tickets are a WebSocket-only concern (ADR-0002 amendment).
                     .pathMatchers("/coroutine/**", "/graphql/**", "/external/**").hasAuthority("ROLE_ADMIN")
-                    .pathMatchers("/sample-secured/**", "/minio/**", "/ws/**", "/ws-ticket", "/sse-ticket", "/update/**").authenticated()
+                    .pathMatchers("/sample-secured/**", "/minio/**", "/ws/**", "/ws-ticket", "/update/**").authenticated()
             }
             .oauth2ResourceServer { rss ->
                 rss.jwt { jwtDecoder(issuer, jwkSetUri) }

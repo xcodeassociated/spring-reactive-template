@@ -2,6 +2,7 @@ package com.softeno.template.users.permission
 
 import com.softeno.template.common.ErrorFactory
 import com.softeno.template.common.getPageRequest
+import com.softeno.template.users.UserEventsPublisher
 import com.softeno.template.users.db.UserPermissionSync
 import com.softeno.template.users.permission.db.PermissionDocument
 import com.softeno.template.users.permission.db.PermissionRepository
@@ -21,6 +22,7 @@ class PermissionService(
     private val permissionRepository: PermissionRepository,
     private val permissionsReactiveMongoTemplate: PermissionsReactiveMongoTemplate,
     private val userPermissionSync: UserPermissionSync,
+    private val userEventsPublisher: UserEventsPublisher,
 ) {
     suspend fun getAll(page: Int, size: Int, sort: String, direction: String): Flow<PermissionDocument> =
         withContext(MDCContext()) {
@@ -41,8 +43,10 @@ class PermissionService(
             val updated = permissionsReactiveMongoTemplate.findAndModify(id, input)
                 .awaitSingleOrNull()
                 ?: throw ErrorFactory.errorPermissionNotFound(id)
-            // embedded snapshots in users are snapshots (ADR-0005) — fan the change out
+            // embedded snapshots in users are snapshots (ADR-0005) — fan the change out,
+            // then ONE completion event: clients must not refetch mid-sync
             userPermissionSync.syncPermission(updated)
+            userEventsPublisher.publishSynced(id)
             updated
         }
 
@@ -54,5 +58,8 @@ class PermissionService(
         permissionRepository.deleteById(id)
         // drop the embedded copies so no user keeps a dangling reference
         userPermissionSync.pullPermission(id)
+        userEventsPublisher.publishSynced(id)
     }
+
+    suspend fun size(): Long = withContext(MDCContext()) { permissionRepository.count() }
 }
