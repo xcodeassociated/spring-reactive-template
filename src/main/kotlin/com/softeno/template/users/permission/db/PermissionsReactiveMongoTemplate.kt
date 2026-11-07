@@ -17,7 +17,9 @@ import reactor.core.publisher.Mono
 class PermissionsReactiveMongoTemplate(val mongoTemplate: ReactiveMongoTemplate) {
     fun findAndModify(id: String, input: PermissionModifyCommand): Mono<PermissionDocument> {
         val query = Query(Criteria.where("id").`is`(id).and("version").`is`(input.version))
-        val update = Update().set("name", input.name).set("description", input.description)
+        // null description -> "" (the document field is non-nullable; never
+        // write null into it) — matches PermissionInput's nullable schema field
+        val update = Update().set("name", input.name).set("description", input.description ?: "")
         // note: Update() has more `set` operations based on the document element type to be modified
         val options = FindAndModifyOptions.options().returnNew(true)
         // note: can be changed to `upsert`

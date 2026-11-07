@@ -12,7 +12,6 @@ import java.time.Instant
 /** Which transport a ticket was minted for — redeem enforces the match. */
 enum class TicketOrigin {
     WEBSOCKET,
-    SSE,
 }
 
 /**
@@ -43,7 +42,7 @@ data class TicketProperties(
  * Rebuilds a [JwtAuthenticationToken] from the mint-time claims captured in a
  * [TicketRecord], so consumers of the security context (handler `claims["sub"]`
  * reads, the Mongo auditor, `.authenticated()` rules) keep working after a
- * ticket redemption — WebSocket upgrade or SSE stream request alike.
+ * ticket redemption — the WebSocket upgrade.
  *
  * The wrapped [Jwt] is a synthetic carrier: it is NOT a validated token and its
  * value must never be logged or forwarded anywhere. The security decision was

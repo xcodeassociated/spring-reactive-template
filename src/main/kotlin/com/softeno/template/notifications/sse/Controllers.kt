@@ -21,10 +21,10 @@ class UpdateController(
 ) {
 
     /**
-     * SSE stream. Identity is bound here from the authenticated principal —
-     * either a real bearer JWT or a redeemed one-time ticket (SseTicketRedeemFilter
-     * wrote it into the security context). The stream's token ceiling (`exp`)
-     * travels into the registry for hard enforcement.
+     * SSE stream. Identity is bound here from the authenticated bearer principal
+     * (the FE uses a fetch-based stream client that can send the Authorization
+     * header — tickets are WebSocket-only, ADR-0002 amendment). The stream's
+     * token ceiling (`exp`) travels into the registry for hard enforcement.
      */
     @GetMapping("/user", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
     suspend fun stream(response: ServerHttpResponse): Flow<ServerSentEvent<String>> {

@@ -195,11 +195,6 @@ class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
             .expectStatus().isOk()
             .expectBody(String::class.java)
             .consumeWith { assert(it.responseBody!!.contains("ws-ticket chat")) { "chat page content missing" } }
-        webTestClient.get().uri("http://localhost:$port/web/sse.html")
-            .exchange()
-            .expectStatus().isOk()
-            .expectBody(String::class.java)
-            .consumeWith { assert(it.responseBody!!.contains("sse-ticket stream")) { "sse page content missing" } }
     }
 
     @Test

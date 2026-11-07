@@ -22,13 +22,12 @@ class KafkaKeycloakController(
 ) {
     private val log = LogFactory.getLog(javaClass)
 
-    // NOTE multi-instance: this listener uses the shared consumer group
-    // `${spring.kafka.consumer.group-id}-keycloak`, so each event is delivered to
-    // ONE instance only — and the session/subscription registries are per-instance.
-    // On a multi-instance deployment give this listener a PER-INSTANCE group id
-    // (e.g. suffix with the pod name) so every instance receives every LOGOUT
-    // event and can revoke its own connections. # VERIFY per deployment.
-    @KafkaListener(id = "\${spring.kafka.consumer.group-id}-keycloak", topics = ["\${com.softeno.kafka.keycloak}"])
+    // Fan-out group (ADR-0008): per-instance suffix so EVERY instance
+    // receives every LOGOUT and revokes its OWN connections — a shared group
+    // would deliver each event to one pod only, leaving the other pods'
+    // streams alive after a kill-session. Side effects here must stay
+    // local-only (see AdminDirective).
+    @KafkaListener(id = "\${spring.kafka.consumer.group-id}-keycloak-\${com.softeno.kafka.instance-id:standalone}", topics = ["\${com.softeno.kafka.keycloak}"])
     suspend fun listen(record: ConsumerRecord<String, JsonNode>) {
         log.debug("[kafka] rx keycloak raw: ${record.key()}: ${record.value()}")
         val dto: KeycloakUserEvent = objectMapper.readValue(record.value().toString(), KeycloakUserEvent::class.java)

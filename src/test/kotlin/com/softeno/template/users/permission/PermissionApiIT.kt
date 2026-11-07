@@ -63,4 +63,25 @@ class PermissionApiIT : BaseIntegrationTest(), PermissionFixture {
             .jsonPath("description").isEqualTo("updated")
             .jsonPath("version").isEqualTo(1)
     }
+
+    @Test
+    fun `count reflects saved permissions`() {
+        // given: the collection is wiped between tests, so the count starts at 0
+        webTestClient.get().uri("/coroutine/permissionsCount")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(Long::class.java).isEqualTo(0L)
+
+        // when
+        runBlocking {
+            permissionRepository.save(aPermissionToSave())
+            permissionRepository.save(aPermissionToSave())
+        }
+
+        // expect
+        webTestClient.get().uri("/coroutine/permissionsCount")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(Long::class.java).isEqualTo(2L)
+    }
 }

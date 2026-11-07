@@ -1,6 +1,6 @@
 # ADR-0003: Application structure — users core, notifications feature, sample demos
 
-- **Status:** Accepted (the `UserWithPermissions` read-tuple detail is superseded by ADR-0005)
+- **Status:** Accepted (the `UserWithPermissions` read-tuple detail is superseded by ADR-0005; the `UserCreatedEvent` detail is superseded by ADR-0006)
 - **Date:** 2026-11-01
 - **Context:** The template grew organically (`app/` vs `sample/` split, notification code under `app/user/notification`, WebSocket demo under `sample/websocket`, Kafka plumbing shared between them). Feature removal and responsibility ownership were hard to see. Supersedes the package layout described in ADR-0001/ADR-0002 (their decisions stand).
 

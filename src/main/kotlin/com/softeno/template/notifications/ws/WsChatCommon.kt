@@ -29,9 +29,9 @@ object WsControl {
 
 @ConfigurationProperties(value = "com.softeno.ws")
 data class ChatConfigProperties(
-    val staleCheck: Boolean,
-    val heartbeatIntervalSeconds: Int,
-    val staleCheckThresholdSeconds: Int,
+    val staleCheck: Boolean = true,
+    val heartbeatIntervalSeconds: Int = 10,
+    val staleCheckThresholdSeconds: Int = 30,
     // how often the sweeper checks token-ceiling expiry and heartbeat staleness
     val sweepIntervalSeconds: Int = 10,
     // exact-match Origin allowlist for the /ws handshake (comma-separated)

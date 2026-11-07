@@ -1,7 +1,7 @@
 package com.softeno.template.config.kafka
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.softeno.template.users.UserCreatedEvent
+import com.softeno.template.users.UserEvent
 import io.micrometer.observation.ObservationRegistry
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -27,7 +27,7 @@ class KafkaConsumerConfig {
 class KafkaProducerConfig {
 
     @Bean
-    fun kafkaTemplate(producerFactory: ProducerFactory<String, UserCreatedEvent>, registry: ObservationRegistry): KafkaTemplate<String, UserCreatedEvent> {
+    fun kafkaTemplate(producerFactory: ProducerFactory<String, UserEvent>, registry: ObservationRegistry): KafkaTemplate<String, UserEvent> {
         return KafkaTemplate(producerFactory).apply {
             setObservationEnabled(true)
             setObservationRegistry(registry)

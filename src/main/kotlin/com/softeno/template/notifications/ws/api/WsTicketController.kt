@@ -28,7 +28,7 @@ import java.time.Instant
  * Response contains only the opaque ticket + TTL — minting a ticket never
  * exposes or logs the access token.
  */
-@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true", matchIfMissing = true)
 @RestController
 class WsTicketController(
     private val ticketStore: TicketStore,
@@ -61,6 +61,6 @@ class WsTicketController(
             origin = TicketOrigin.WEBSOCKET,
         )
         log.debug("ws: [ticket] mint requested for sub: ${record.sub}")
-        return ResponseEntity.ok(TicketResponse(ticketStore.issue(record), config.ttlSeconds))
+        return ResponseEntity.ok(TicketResponse(ticketStore.issue(record, config.ttlSeconds.toLong()), config.ttlSeconds))
     }
 }

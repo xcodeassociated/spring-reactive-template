@@ -31,8 +31,11 @@ class KafkaKeycloakAdminController(
 ) {
     private val log = LogFactory.getLog(javaClass)
 
+    // Fan-out group (ADR-0008): per-instance suffix — every instance applies
+    // the directive to its OWN connections; directive side effects must be
+    // local-only (never a write), or per-instance consumption would duplicate it.
     @KafkaListener(
-        id = "\${spring.kafka.consumer.group-id}-keycloak-admin",
+        id = "\${spring.kafka.consumer.group-id}-keycloak-admin-\${com.softeno.kafka.instance-id:standalone}",
         topics = ["\${com.softeno.kafka.keycloak-admin}"],
     )
     suspend fun listen(record: ConsumerRecord<String, JsonNode>) {
@@ -56,6 +59,12 @@ class KafkaKeycloakAdminController(
  * the single place that reads meaning into the raw wire shape: a new admin
  * event reaction is a new [of] case + controller branch, keeping the DTO a
  * dumb wire shape (mirrors the `List<Notification>` fan-out style, ADR-0004).
+ *
+ * INVARIANT (ADR-0008): every directive runs on EVERY instance (fan-out
+ * consumer group), so side effects must be LOCAL-ONLY (close/revoke own
+ * connections). A directive that writes to the database or publishes events
+ * would execute once per pod — such work belongs in a competing-consumer
+ * listener, never here.
  */
 sealed interface AdminDirective {
     /**

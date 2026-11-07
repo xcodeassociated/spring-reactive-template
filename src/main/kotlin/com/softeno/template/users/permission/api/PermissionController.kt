@@ -25,6 +25,9 @@ class PermissionController(
     suspend fun getPermission(@PathVariable id: String): PermissionDto =
         permissionService.get(id).toDto()
 
+    @GetMapping("/permissionsCount")
+    suspend fun getPermissionSize(): Long = permissionService.size()
+
     @DeleteMapping("/permissions/{id}")
     suspend fun deletePermission(@PathVariable id: String) =
         permissionService.delete(id)

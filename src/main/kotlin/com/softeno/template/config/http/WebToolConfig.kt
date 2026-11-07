@@ -6,8 +6,8 @@ import org.springframework.web.reactive.config.WebFluxConfigurer
 
 /**
  * Serves the repo-root `web/` directory under the /web path — a dev-only static
- * home for the browser dev tools: `web/chat.html` (ticket-auth WebSocket) and
- * `web/sse.html` (ticket-auth SSE). Path is permitAll in SecurityConfig. If `web/`
+ * home for the browser dev tools: `web/chat.html` (ticket-auth WebSocket).
+ * Path is permitAll in SecurityConfig. If `web/`
  * does not exist (production image, cleaned checkout) the handler just 404s.
  *
  * Note: browser login also requires the Keycloak `frontend` client to accept this

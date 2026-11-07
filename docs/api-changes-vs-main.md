@@ -80,7 +80,7 @@ Frames are JSON `{"from": "<sub|null>", "to": "<sessionId|ALL|SYSTEM>", "content
 | Event | Data | Meaning / client action |
 |---|---|---|
 | `heartbeat` | `{"from":"SYSTEM","to":"ALL","content":"ping"}` | stream alive (immediately on subscribe, then ~10 s) |
-| `update` | `{"from":"SYSTEM","to":"ALL","content":"USER_CREATED: <id>"}` (etc.) | domain broadcast |
+| `update` | `{"from":"SYSTEM","to":"ALL","content":"USER_CREATED: <id>"}` / `USER_UPDATED: <id>` / `USER_DELETED: <id>` | domain broadcast (user lifecycle, ADR-0006) |
 | `token_expired` | `…content:"token_expired"…` | mint-time token ceiling reached — refresh, re-mint, reconnect |
 | `logged_out` | `…content:"logged_out"…` | revoked — close, stop reconnecting |
 

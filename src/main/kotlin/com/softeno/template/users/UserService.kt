@@ -57,7 +57,7 @@ class UserService(
         log.info("User created: $saved")
 
         // end of the core part: the integration event is the boundary
-        userEventsPublisher.publishUserCreated(saved.id!!)
+        userEventsPublisher.publish(saved.id!!, UserAction.CREATED)
         saved
     }
 
@@ -65,7 +65,9 @@ class UserService(
         val version = input.version ?: throw VersionMissingException("Version is required")
         val permissions = input.permissionIds.map { PermissionSnapshot.of(permissionService.get(it)) }.toSet()
         val user = userRepository.findByIdAndVersion(id, version) ?: throw ErrorFactory.errorUserNotFound(id)
-        userRepository.save(user.copy(name = input.name, email = input.email, permissions = permissions))
+        val saved = userRepository.save(user.copy(name = input.name, email = input.email, permissions = permissions))
+        userEventsPublisher.publish(saved.id!!, UserAction.UPDATED)
+        saved
     }
 
     suspend fun delete(id: String) = withContext(MDCContext()) {
@@ -73,6 +75,7 @@ class UserService(
             throw ErrorFactory.errorUserNotFound(id)
         }
         userRepository.deleteById(id)
+        userEventsPublisher.publish(id, UserAction.DELETED)
     }
 
     suspend fun size(): Long = withContext(MDCContext()) { userRepository.count() }

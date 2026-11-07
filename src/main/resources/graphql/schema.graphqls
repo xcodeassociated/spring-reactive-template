@@ -1,5 +1,6 @@
 type Query {
     getAllPermissions(page: Int, size: Int, sort: String, direction: String): [Permission]
+    getPermissionsSize: Int
     getPermission(id: String): Permission
 
     getAllUsers(page: Int, size: Int, sort: String, direction: String): [User]

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service
  * WebSocket adapter of the [Notification] port (ADR-0004) — delegates to the
  * session registry in [CoroutineMessageService]. Toggle: `com.softeno.ws.enabled`.
  */
-@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["com.softeno.ws.enabled"], havingValue = "true", matchIfMissing = true)
 @Service
 class WsNotification(
     private val messageService: CoroutineMessageService,

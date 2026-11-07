@@ -10,6 +10,11 @@ import org.springframework.stereotype.Component
  * pulls it out of every user. Fetch + saveAll (not raw arrayFilters) keeps this
  * coroutine-idiomatic and participates in the documents' optimistic locking.
  *
+ * Deliberately publishes nothing: the completion signal is ONE
+ * `UserEventsPublisher.publishSynced` from PermissionService AFTER this fan-out
+ * returns — per-user events here would spam every client into refetch loops
+ * that can observe a half-synced user set.
+ *
  * Consistency window: the fan-out is not atomic with the permission write — a
  * user read racing it sees the previous snapshot at most one propagation
  * behind; a user saved concurrently with the fan-out may keep the old snapshot

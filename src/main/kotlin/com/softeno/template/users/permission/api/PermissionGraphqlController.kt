@@ -20,6 +20,9 @@ class PermissionGraphqlController(
     ) = permissionService.getAll(page, size, sort, direction)
 
     @QueryMapping
+    suspend fun getPermissionsSize() = permissionService.size()
+
+    @QueryMapping
     suspend fun getPermission(@Argument id: String) = permissionService.get(id)
 
     @MutationMapping
