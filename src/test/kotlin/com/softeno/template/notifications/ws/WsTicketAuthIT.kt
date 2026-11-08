@@ -200,12 +200,19 @@ class WsTicketAuthIT : WsTicketAuthAbility, KeycloakEventFixture {
     }
 
     @Test
-    fun `web dev pages are served at web path`() {
-        webTestClient.get().uri("http://localhost:$port/web/chat.html")
+    fun `chat dev tool is served at root path with its public config endpoint`() {
+        webTestClient.get().uri("http://localhost:$port/chat.html")
             .exchange()
             .expectStatus().isOk()
             .expectBody(String::class.java)
             .consumeWith { assert(it.responseBody!!.contains("ws-ticket chat")) { "chat page content missing" } }
+
+        // the page discovers Keycloak from this; must be permitAll and issuer-derived
+        webTestClient.get().uri("http://localhost:$port/chat-config")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.clientId").isEqualTo("frontend")
     }
 
     @Test
