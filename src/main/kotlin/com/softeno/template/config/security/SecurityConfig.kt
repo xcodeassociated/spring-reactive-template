@@ -102,7 +102,11 @@ class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
                     // dev-tool static pages (chat/sse) from ./web, dev-only
-                    "/web/**"
+                    "/web/**",
+                    // packaged chat dev tool (served from classpath:/static)
+                    // + its public Keycloak-config endpoint
+                    "/chat.html",
+                    "/chat-config"
                 )
                     .permitAll()
                     // /ws/** is authenticated by the one-time ticket redeemed at the

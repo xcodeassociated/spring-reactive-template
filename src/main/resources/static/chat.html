@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <!--
-  web/chat.html — browser chat dev tool for this template (NOT a product).
+  chat.html — browser chat dev tool for this template (NOT a product).
 
-  Served by the backend at http://localhost:8080/web/chat.html (see
-  WebToolConfig; /web/** is permitAll). The page always talks to the backend
-  at http://localhost:8080 regardless of where it is loaded from, so it also
-  works from a plain static server, e.g.:
-    (cd web && python3 -m http.server 3000)   # then http://localhost:3000/chat.html
+  Packaged into the jar (classpath:/static) and served permitAll at
+  /chat.html — locally http://localhost:8080/chat.html, on a cluster
+  https://<api-host>/<service>/chat.html (same URL shape as swagger-ui).
+  All endpoints are derived from the page's own URL; the Keycloak server
+  URL + realm come from GET <base>/chat-config (issuer-derived, public).
 
   Flow (one-time-ticket WebSocket auth):
     keycloak-js (CDN) check-sso -> login -> getAccessToken
-    -> POST http://localhost:8080/ws-ticket (Authorization: Bearer)
-    -> new WebSocket("ws://localhost:8080/ws?ticket=...")
+    -> POST <base>/ws-ticket (Authorization: Bearer)
+    -> new WebSocket(<wss>/ws?ticket=...)
     The ticket is opaque, single-use and 10 s TTL; it is the ONLY credential
     allowed in the socket URL (never ?access_token= — RFC 9700 §4.3.2).
 
@@ -25,16 +25,13 @@
     - close 4403 (LOGGED_OUT): revoked -> stop, show logged-out (no reconnect).
     - Reconnect button always mints a FRESH ticket (a used ticket gets 401).
 
-  Dev-infra requirement: the Keycloak `frontend` client of realm `app` must list
-  the page's origin in its Valid redirect URIs + Web origins. The stock realm
-  config allows http://localhost:3000 — so serving this directory from :3000
-  works out of the box. To also use it from the backend origin (:8080):
-
-    kcadm.sh config credentials --server http://localhost:8090/realms/master \
-      --realm master --user admin --password <admin-password>
+  Auth requirement: the Keycloak `frontend` client must list THIS page's
+  origin in its Valid redirect URIs (webOrigins can stay `*`):
+    local dev     http://localhost:8080/*
+    k8s template  https://api.<domain>/*   (the Gateway API route prefix)
+  Stock dev-infra realm config only ships localhost — extend it with kcadm:
     kcadm.sh update clients/<frontend-client-uuid> -r app \
-      -s 'redirectUris=["http://localhost:3000/*","http://localhost:8080/*"]' \
-      -s 'webOrigins=["http://localhost:3000","http://localhost:8080"]'
+      -s 'redirectUris+=["http://localhost:8080/*"]'
 -->
 <html lang="en">
 <head>
@@ -72,9 +69,20 @@
 <script type="module">
 import Keycloak from "https://cdn.jsdelivr.net/npm/keycloak-js@26/+esm"; // 26.x ships no dist/*.mjs; jsdelivr ESM build
 
-const AUTH = { url: "http://localhost:8090", realm: "app", clientId: "frontend" };
-const API = "http://localhost:8080";   // backend, regardless of where this page is served from
-const WS_URL = "ws://localhost:8080/ws";
+// Environment-agnostic: the backend base comes from THIS page's own URL
+// (so it works at http://localhost:8080/chat.html locally and at
+// https://<api-host>/<service>/chat.html behind the Gateway API route —
+// relative paths also make the prefix rewrite transparent), and the
+// Keycloak server + realm come from the backend's /chat-config endpoint
+// (derived from its OAUTH_ISSUER_URI). No host is hardcoded here.
+const API_BASE = location.pathname.replace(/[^/]*$/, "");   // dir of this page, trailing slash
+const API = location.origin + API_BASE.replace(/\/$/, "");  // backend, prefix-aware
+const WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + API_BASE + "ws";
+const cfg = await fetch(API_BASE + "chat-config", { headers: { accept: "application/json" } })
+  .then((r) => { if (!r.ok) throw new Error("chat-config HTTP " + r.status); return r.json(); })
+  .catch((e) => { status("config load failed: " + e.message); return null; });
+const AUTH = cfg ? { url: cfg.authUrl, realm: cfg.realm, clientId: cfg.clientId }
+                 : { url: "http://localhost:8090", realm: "app", clientId: "frontend" }; // local fallback
 
 const kc = new Keycloak(AUTH);
 const $ = (id) => document.getElementById(id);
